@@ -25,16 +25,10 @@ Or normally:
 import sys, threading, time, math, argparse
 import numpy as np
 import matplotlib
-matplotlib.use("TkAgg")
+import os
+matplotlib.use("TkAgg" if os.environ.get("DISPLAY") else "Agg")
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-
-try:
-    import yarp
-    _YARP_AVAILABLE = True
-except ImportError:
-    yarp = None
-    _YARP_AVAILABLE = False
 
 # ─── Robot geometry (must match gait.py) ──────────────────────────────────────
 HIP_WIDTH    = 0.08
@@ -162,26 +156,25 @@ class RobotState:
 
 class VizListener(threading.Thread):
     def __init__(self, state: RobotState):
+        import yarp as _yarp
         super().__init__(daemon=True)
         self.state = state
-        self.port  = yarp.Port()
+        self.yarp  = _yarp
+        self.port  = _yarp.Port()
 
     def run(self):
-        # Network.init already called on main thread — do NOT call again here
+        yarp = self.yarp
         self.port.open(PORT_IN)
         print(f"[viz] port open: {PORT_IN}")
-
-        # block until connected — same pattern as sniff.py which we know works
         print(f"[viz] connecting {PORT_SRC} -> {PORT_IN} ...")
         while not yarp.Network.connect(PORT_SRC, PORT_IN):
             print(f"[viz] retrying...")
             time.sleep(1.0)
         print(f"[viz] CONNECTED — reading")
-
         frames = 0
         while True:
             b = yarp.Bottle()
-            self.port.read(b)        # BLOCKING — no poll, no sleep, just waits
+            self.port.read(b)
             self.state.update_from_bottle(b)
             frames += 1
             if frames == 1:
@@ -614,11 +607,9 @@ def main():
     listener = None
 
     if not args.demo:
-        if not _YARP_AVAILABLE:
-            print("[viz] ERROR: yarp module not available. Run with --demo or install python yarp.")
-            sys.exit(1)
-        yarp.Network.init()
-        assert yarp.Network.checkNetwork(3.0), "yarpserver not reachable"
+        import yarp as _yarp
+        _yarp.Network.init()
+        assert _yarp.Network.checkNetwork(3.0), "yarpserver not reachable"
         listener = VizListener(state)
         listener.start()
     else:

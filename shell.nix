@@ -28,19 +28,64 @@ let
     tkinter
   ] ++ [ ikpy ]);
 
+  yarpPython = pkgs.yarp.overrideAttrs (old: {
+    cmakeFlags = (old.cmakeFlags or []) ++ [
+      "-DYARP_COMPILE_BINDINGS=ON"
+      "-DCREATE_PYTHON=ON"
+      "-DYARP_COMPILE_DEVICE_PLUGINS=OFF"
+      "-DYARP_COMPILE_CARRIER_PLUGINS=OFF"
+      "-DYARP_COMPILE_PORTMONITOR_PLUGINS=OFF"
+      "-DYARP_COMPILE_TESTS=OFF"
+      "-DPython3_EXECUTABLE=${python}/bin/python3"
+    ];
+    nativeBuildInputs = (old.nativeBuildInputs or []) ++ [ pkgs.swig python ];
+  });
+
 in
 pkgs.mkShell {
   packages = [
     py
-    pkgs.yarp
+    yarpPython
     pkgs.fish
     pkgs.which
     pkgs.tcl
     pkgs.tk
+    pkgs.stdenv.cc.cc.lib
+    pkgs.zlib
+    pkgs.libGL
+    pkgs.libGLU
+    pkgs.mesa
+    pkgs.xorg.libX11
+    pkgs.xorg.libXext
+    pkgs.xorg.libXrender
+    pkgs.xorg.libXfixes
+    pkgs.xorg.libXcursor
+    pkgs.xorg.libXi
+    pkgs.xorg.libXrandr
+    pkgs.xorg.libXinerama
   ];
 
   shellHook = ''
-    python -c "import numpy, scipy, sympy, ikpy, yaml, pybullet, matplotlib; print('ok: wszystkie paczki')"
+    export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [
+      pkgs.stdenv.cc.cc.lib
+      pkgs.zlib
+      pkgs.libGL
+      pkgs.libGLU
+      pkgs.mesa
+      pkgs.xorg.libX11
+      pkgs.xorg.libXext
+      pkgs.xorg.libXrender
+      pkgs.xorg.libXfixes
+      pkgs.xorg.libXcursor
+      pkgs.xorg.libXi
+      pkgs.xorg.libXrandr
+      pkgs.xorg.libXinerama
+    ]}:$LD_LIBRARY_PATH"
+
+    export PYTHONPATH="$(find ${yarpPython} -type d -path '*/site-packages' | head -n1):$PYTHONPATH"
+
+    python3 -c "import yarp; print('yarp ok, Network=', hasattr(yarp,'Network'))"
+    python3 -c "import pybullet as p; print('pybullet ok')"
     exec fish
   '';
 }
