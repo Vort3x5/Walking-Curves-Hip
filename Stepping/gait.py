@@ -50,12 +50,24 @@ _DEFAULT_CURVE_PROFILE = [
     [1.00, 0.00, 0.00],
 ]
 
-HIP_ROLL_MAX = math.radians(5.0)
-HIP_PITCH_MAX = math.radians(3.0)
-ANKLE_ROLL_COMP = 0.60
-ANKLE_PITCH_COMP = 0.55
-LEAN_FILTER = 0.16
+HIP_ROLL_MAX = math.radians(7.0)
+HIP_PITCH_MAX = math.radians(5.0)
+HIP_YAW_MAX = math.radians(8.0)
+ANKLE_ROLL_COMP = 0.65
+ANKLE_PITCH_COMP = 0.60
 KNEE_BASE = math.radians(20.0)
+
+COM_SHIFT_BASE = 0.018
+COM_SHIFT_GAIN_PHASE = 0.014
+COM_SHIFT_FILTER = 0.22
+
+ROLL_FILTER = 0.20
+PITCH_FILTER = 0.20
+YAW_FILTER = 0.22
+
+TURN_YAW_GAIN = 1.15
+TURN_ROLL_GAIN = 0.35
+TURN_PITCH_GAIN = 0.25
 
 def add_f64(b, v):
     if hasattr(b, "addFloat64"):
@@ -138,6 +150,9 @@ class GaitCoordinator:
         self.cmd = "stop"
         self.hip_roll_bias = 0.0
         self.hip_pitch_bias = 0.0
+        self.hip_yaw_bias = 0.0
+        self.com_lateral_shift = 0.0
+        self.turn_cmd_sign = 0.0
 
     def set_command(self, c):
         with self.cmd_lock:
@@ -188,6 +203,7 @@ class GaitCoordinator:
 
     def _begin_turn(self, direction, resume_state):
         d = +1 if direction == "left" else -1
+        self.turn_cmd_sign = float(d)
         swing_side = Side.RIGHT if direction == "left" else Side.LEFT
         self.turn_resume = resume_state
         self.turn_heading_end = self.heading + d * TURN_STEP_ANGLE
@@ -203,10 +219,23 @@ class GaitCoordinator:
         support = Side.OTHER[self.swing_side] if self.state != GaitState.IDLE else Side.LEFT
         p = max(0.0, min(1.0, self.swing_t if self.state != GaitState.IDLE else 0.0))
         phase = math.sin(math.pi * p)
-        roll_target = (-HIP_ROLL_MAX if support == Side.LEFT else HIP_ROLL_MAX) * (0.60 + 0.40 * phase)
-        pitch_target = HIP_PITCH_MAX * (0.25 + 0.75 * phase) if self.state in (GaitState.STEPPING, GaitState.TURNING, GaitState.STOPPING) else 0.0
-        self.hip_roll_bias += LEAN_FILTER * (roll_target - self.hip_roll_bias)
-        self.hip_pitch_bias += LEAN_FILTER * (pitch_target - self.hip_pitch_bias)
+
+        roll_target = (-HIP_ROLL_MAX if support == Side.LEFT else HIP_ROLL_MAX) * (0.55 + 0.45 * phase)
+        pitch_target = HIP_PITCH_MAX * (0.20 + 0.80 * phase) if self.state in (GaitState.STEPPING, GaitState.TURNING, GaitState.STOPPING) else 0.0
+
+        if self.state == GaitState.TURNING:
+            yaw_target = self.turn_cmd_sign * HIP_YAW_MAX * (0.35 + 0.65 * phase) * TURN_YAW_GAIN
+            roll_target += self.turn_cmd_sign * HIP_ROLL_MAX * TURN_ROLL_GAIN * (0.4 + 0.6 * phase)
+            pitch_target += HIP_PITCH_MAX * TURN_PITCH_GAIN * (0.3 + 0.7 * phase)
+        else:
+            yaw_target = 0.0
+
+        lat_shift_target = (-1.0 if support == Side.LEFT else 1.0) * (COM_SHIFT_BASE + COM_SHIFT_GAIN_PHASE * phase)
+
+        self.com_lateral_shift += COM_SHIFT_FILTER * (lat_shift_target - self.com_lateral_shift)
+        self.hip_roll_bias += ROLL_FILTER * (roll_target - self.hip_roll_bias)
+        self.hip_pitch_bias += PITCH_FILTER * (pitch_target - self.hip_pitch_bias)
+        self.hip_yaw_bias += YAW_FILTER * (yaw_target - self.hip_yaw_bias)
 
     def tick(self):
         cmd, q = self._get_state()
@@ -253,6 +282,7 @@ class GaitCoordinator:
                     self._begin_turn(nxt, GaitState.STEPPING if cmd == "forward" else GaitState.IDLE)
                 else:
                     self.state = self.turn_resume
+                    self.turn_cmd_sign = 0.0
                     if self.state == GaitState.STEPPING:
                         self._start_swing(Side.OTHER[self.swing_side])
 
@@ -264,7 +294,11 @@ class GaitCoordinator:
             self.foot_world[self.swing_side] = bezier(self.swing_curve, max(0.0, min(1.0, self.swing_t)))
 
         self._update_balance()
+
         feet_hip_rel = [self.foot_world[s] - self._hip_world(s) for s in (Side.LEFT, Side.RIGHT)]
+        feet_hip_rel[0][1] -= self.com_lateral_shift
+        feet_hip_rel[1][1] -= self.com_lateral_shift
+
         return {
             "state": self.state,
             "heading": self.heading,
@@ -276,6 +310,8 @@ class GaitCoordinator:
             "swing_curve": self.swing_curve,
             "hip_roll_bias": self.hip_roll_bias,
             "hip_pitch_bias": self.hip_pitch_bias,
+            "hip_yaw_bias": self.hip_yaw_bias,
+            "com_lateral_shift": self.com_lateral_shift,
         }
 
 class CmdListener(threading.Thread):
@@ -312,19 +348,22 @@ def open_port_unique(base_name):
         return p, alt
     raise RuntimeError(f"cannot open yarp port: {base_name}")
 
-def simple_angles(side, swing_side, swing_t, roll_bias, pitch_bias):
+def simple_angles(side, swing_side, swing_t, roll_bias, pitch_bias, yaw_bias):
     p = max(0.0, min(1.0, swing_t))
     s = math.sin(math.pi * p)
     hip_pitch = 0.0
     knee = KNEE_BASE
     ankle_pitch = -0.5 * KNEE_BASE
+    hip_yaw = 0.0
     if side == swing_side:
         hip_pitch += math.radians(10.0) * s
         knee += math.radians(14.0) * s
         ankle_pitch -= math.radians(6.0) * s
+        hip_yaw += yaw_bias * (0.55 + 0.45 * s)
     else:
         hip_pitch -= math.radians(3.0) * s
         knee += math.radians(4.0) * s
+        hip_yaw -= yaw_bias * 0.35
     if side == Side.LEFT:
         return {
             "left_hip_roll": roll_bias,
@@ -332,7 +371,7 @@ def simple_angles(side, swing_side, swing_t, roll_bias, pitch_bias):
             "left_knee_pitch": knee,
             "left_ankle_pitch": ankle_pitch - ANKLE_PITCH_COMP * pitch_bias,
             "left_ankle_roll": -ANKLE_ROLL_COMP * roll_bias,
-            "left_ankle_yaw": 0.0
+            "left_ankle_yaw": hip_yaw
         }
     return {
         "right_hip_roll": roll_bias,
@@ -340,7 +379,7 @@ def simple_angles(side, swing_side, swing_t, roll_bias, pitch_bias):
         "right_knee_pitch": knee,
         "right_ankle_pitch": ankle_pitch - ANKLE_PITCH_COMP * pitch_bias,
         "right_ankle_roll": -ANKLE_ROLL_COMP * roll_bias,
-        "right_ankle_yaw": 0.0
+        "right_ankle_yaw": hip_yaw
     }
 
 def gait_loop(gait, ports, ik):
@@ -377,22 +416,32 @@ def gait_loop(gait, ports, ik):
                 dx, dy, dz = foot[0]-hip[0], foot[1]-hip[1], foot[2]-hip[2]
                 return np.array([cos_h*dx - sin_h*dy, sin_h*dx + cos_h*dy, dz])
 
-            left_angles = ik.solve_left(to_hip_rel(foot_l, hip_world(Side.LEFT)))
-            right_angles = ik.solve_right(to_hip_rel(foot_r, hip_world(Side.RIGHT)))
+            left_rel = to_hip_rel(foot_l, hip_world(Side.LEFT))
+            right_rel = to_hip_rel(foot_r, hip_world(Side.RIGHT))
+
+            left_rel[1] -= snap["com_lateral_shift"]
+            right_rel[1] -= snap["com_lateral_shift"]
+
+            left_angles = ik.solve_left(left_rel)
+            right_angles = ik.solve_right(right_rel)
 
             if support == Side.LEFT:
                 left_angles["left_hip_roll"] = left_angles.get("left_hip_roll", 0.0) + snap["hip_roll_bias"]
                 left_angles["left_hip_pitch"] = left_angles.get("left_hip_pitch", 0.0) + snap["hip_pitch_bias"]
                 left_angles["left_ankle_roll"] = left_angles.get("left_ankle_roll", 0.0) - ANKLE_ROLL_COMP * snap["hip_roll_bias"]
                 left_angles["left_ankle_pitch"] = left_angles.get("left_ankle_pitch", 0.0) - ANKLE_PITCH_COMP * snap["hip_pitch_bias"]
+                left_angles["left_ankle_yaw"] = left_angles.get("left_ankle_yaw", 0.0) + snap["hip_yaw_bias"] * (0.35 if snap["state"] == GaitState.TURNING else 0.18)
+                right_angles["right_ankle_yaw"] = right_angles.get("right_ankle_yaw", 0.0) - snap["hip_yaw_bias"] * 0.10
             else:
                 right_angles["right_hip_roll"] = right_angles.get("right_hip_roll", 0.0) + snap["hip_roll_bias"]
                 right_angles["right_hip_pitch"] = right_angles.get("right_hip_pitch", 0.0) + snap["hip_pitch_bias"]
                 right_angles["right_ankle_roll"] = right_angles.get("right_ankle_roll", 0.0) - ANKLE_ROLL_COMP * snap["hip_roll_bias"]
                 right_angles["right_ankle_pitch"] = right_angles.get("right_ankle_pitch", 0.0) - ANKLE_PITCH_COMP * snap["hip_pitch_bias"]
+                right_angles["right_ankle_yaw"] = right_angles.get("right_ankle_yaw", 0.0) + snap["hip_yaw_bias"] * (0.35 if snap["state"] == GaitState.TURNING else 0.18)
+                left_angles["left_ankle_yaw"] = left_angles.get("left_ankle_yaw", 0.0) - snap["hip_yaw_bias"] * 0.10
         else:
-            left_angles = simple_angles(Side.LEFT, snap["swing_side"], snap["swing_t"], left_roll, snap["hip_pitch_bias"] if support == Side.LEFT else 0.0)
-            right_angles = simple_angles(Side.RIGHT, snap["swing_side"], snap["swing_t"], right_roll, snap["hip_pitch_bias"] if support == Side.RIGHT else 0.0)
+            left_angles = simple_angles(Side.LEFT, snap["swing_side"], snap["swing_t"], left_roll, snap["hip_pitch_bias"] if support == Side.LEFT else 0.0, snap["hip_yaw_bias"])
+            right_angles = simple_angles(Side.RIGHT, snap["swing_side"], snap["swing_t"], right_roll, snap["hip_pitch_bias"] if support == Side.RIGHT else 0.0, snap["hip_yaw_bias"])
 
         for port_a, angles, order in [
             (port_left_angles, left_angles, LEFT_JOINT_ORDER),

@@ -33,19 +33,34 @@ def _local_name(tag):
 def _joint_score(name):
     n = name.lower()
     s = 0
+    if "revolute" in n:
+        s += 100
     if "segment1" in n:
-        s += 50
-    if "segment3-4" in n:
         s += 40
+    if "segment3-4" in n:
+        s += 35
     if "wj-wk00-0018_45" in n:
-        s += 30
+        s += 20
     if "part_2_" in n:
-        s += 15
+        s += 10
     if "stopa" in n or "part_1_4_1" in n:
         s -= 20
+    if "base link" in n or "last_joint" in n or "fastened" in n:
+        s -= 1000
     if "ge_27" in n or "gacie" in n or "mocowanie" in n:
-        s -= 100
+        s -= 500
     return s
+
+
+def _is_valid_active_joint_name(name):
+    n = name.lower()
+    if n == "base link":
+        return False
+    if n == "last_joint":
+        return False
+    if "fastened" in n:
+        return False
+    return True
 
 
 class _LegChain:
@@ -119,11 +134,14 @@ class LegIK:
 
     @staticmethod
     def _pick_six(active_names):
-        if len(active_names) == 6:
-            return active_names
-        ranked = sorted(active_names, key=lambda n: (_joint_score(n), n), reverse=True)
+        filtered = [n for n in active_names if _is_valid_active_joint_name(n)]
+        if len(filtered) < 6:
+            raise RuntimeError(f"[ik] after filtering got {len(filtered)} joints, need 6. filtered={filtered}")
+        if len(filtered) == 6:
+            return filtered
+        ranked = sorted(filtered, key=lambda n: (_joint_score(n), n), reverse=True)
         chosen = set(ranked[:6])
-        ordered = [n for n in active_names if n in chosen]
+        ordered = [n for n in filtered if n in chosen]
         if len(ordered) < 6:
             for n in ranked:
                 if n not in ordered:
@@ -137,11 +155,8 @@ class LegIK:
         names = chain_obj.active_names
         if len(names) < 6:
             dbg = ", ".join(chain_obj.link_names)
-            raise RuntimeError(
-                f"[ik] {leg_name}: not enough active joints ({len(names)}). "
-                f"active={names}; chain_links=[{dbg}]"
-            )
-        selected = names[-6:]
+            raise RuntimeError(f"[ik] {leg_name}: not enough active joints ({len(names)}). active={names}; chain_links=[{dbg}]")
+        selected = LegIK._pick_six(names)
         print(f"[ik] {leg_name} active joints: {names}")
         print(f"[ik] {leg_name} selected 6: {selected}")
         return dict(zip(gait_order, selected))
@@ -169,102 +184,44 @@ class LegIK:
         self._left.reset()
 
 
-    def generate_leg_urdfs(src_urdf, out_dir, right_base, right_tip, left_base, left_tip):
-        tree = ET.parse(src_urdf)
-        root = tree.getroot()
+def generate_leg_urdfs(src_urdf, out_dir, right_base, right_tip, left_base, left_tip):
+    tree = ET.parse(src_urdf)
+    root = tree.getroot()
 
-        links = {}
-        joints = {}
+    links = {}
+    joints = {}
 
-        for e in root.iter():
-            ln = _local_name(e.tag)
-            if ln == "link":
-                n = e.get("name")
-                if n:
-                    links[n] = e
-            elif ln == "joint":
-                n = e.get("name")
-                if n:
-                    joints[n] = e
+    for e in root.iter():
+        ln = _local_name(e.tag)
+        if ln == "link":
+            n = e.get("name")
+            if n:
+                links[n] = e
+        elif ln == "joint":
+            n = e.get("name")
+            if n:
+                joints[n] = e
 
-        children_of = {}
-        edge_joint = {}
+    children_of = {}
+    edge_joint = {}
 
-        for jn, j in joints.items():
-            p = None
-            c = None
-            for child in list(j):
-                ln = _local_name(child.tag)
-                if ln == "parent":
-                    p = child
-                elif ln == "child":
-                    c = child
-            if p is None or c is None:
-                continue
-            pl = p.get("link")
-            cl = c.get("link")
-            if not pl or not cl:
-                continue
-            children_of.setdefault(pl, []).append(cl)
-            edge_joint[(pl, cl)] = jn
-
-    def run_self_test(src_urdf, out_dir, right_base, right_tip, left_base, left_tip):
-        print("[ik:test] regenerating leg URDFs...")
-        generate_leg_urdfs(
-            src_urdf=src_urdf,
-            out_dir=out_dir,
-            right_base=right_base,
-            right_tip=right_tip,
-            left_base=left_base,
-            left_tip=left_tip,
-        )
-
-        print("[ik:test] loading LegIK...")
-        ik = LegIK(out_dir)
-
-        print("[ik:test] checking output keys...")
-        r = ik.solve_right(np.array([0.02, 0.0, -0.20], dtype=float))
-        l = ik.solve_left(np.array([0.02, 0.0, -0.20], dtype=float))
-
-        r_expected = set(GAIT_RIGHT_ORDER)
-        l_expected = set(GAIT_LEFT_ORDER)
-
-        if set(r.keys()) != r_expected:
-            raise RuntimeError(f"[ik:test] right keys mismatch: got={sorted(r.keys())}, expected={sorted(r_expected)}")
-        if set(l.keys()) != l_expected:
-            raise RuntimeError(f"[ik:test] left keys mismatch: got={sorted(l.keys())}, expected={sorted(l_expected)}")
-
-        print("[ik:test] probing knee response over z sweep...")
-        z_vals = np.linspace(-0.16, -0.24, 7)
-        rk = []
-        lk = []
-        for z in z_vals:
-            rr = ik.solve_right(np.array([0.02, 0.0, z], dtype=float))
-            ll = ik.solve_left(np.array([0.02, 0.0, z], dtype=float))
-            rk.append(rr["right_knee_pitch"])
-            lk.append(ll["left_knee_pitch"])
-
-        r_span = max(rk) - min(rk)
-        l_span = max(lk) - min(lk)
-
-        print(f"[ik:test] right knee span: {r_span:.6f} rad")
-        print(f"[ik:test] left  knee span: {l_span:.6f} rad")
-        print(f"[ik:test] right knee seq: {[round(x, 4) for x in rk]}")
-        print(f"[ik:test] left  knee seq: {[round(x, 4) for x in lk]}")
-
-        if r_span < math.radians(2.0):
-            raise RuntimeError("[ik:test] right knee response too small")
-        if l_span < math.radians(2.0):
-            raise RuntimeError("[ik:test] left knee response too small")
-
-        for i in range(1, len(rk)):
-            if abs(rk[i] - rk[i - 1]) > math.radians(35):
-                raise RuntimeError("[ik:test] right knee has unnatural jump")
-        for i in range(1, len(lk)):
-            if abs(lk[i] - lk[i - 1]) > math.radians(35):
-                raise RuntimeError("[ik:test] left knee has unnatural jump")
-
-        print("[ik:test] OK")
+    for jn, j in joints.items():
+        p = None
+        c = None
+        for child in list(j):
+            ln = _local_name(child.tag)
+            if ln == "parent":
+                p = child
+            elif ln == "child":
+                c = child
+        if p is None or c is None:
+            continue
+        pl = p.get("link")
+        cl = c.get("link")
+        if not pl or not cl:
+            continue
+        children_of.setdefault(pl, []).append(cl)
+        edge_joint[(pl, cl)] = jn
 
     def directed_path(base_link, tip_link):
         q = deque([base_link])
@@ -291,7 +248,7 @@ class LegIK:
         used_links = set(path_links)
         used_joints = [edge_joint[(path_links[i], path_links[i + 1])] for i in range(len(path_links) - 1)]
 
-        lines = [f'<robot name="{out_name.replace(".urdf","")}">']
+        lines = [f'<robot name="{out_name.replace(".urdf", "")}">']
         for ln in sorted(used_links):
             lines.append(f'  <link name="{ln}"/>')
 
@@ -364,6 +321,65 @@ class LegIK:
     print(f"[ik] path {right_base} -> {right_tip}: {' -> '.join(rp)}")
     emit_leg(lp, "leg_left.urdf")
     print(f"[ik] path {left_base} -> {left_tip}: {' -> '.join(lp)}")
+
+
+def run_self_test(src_urdf, out_dir, right_base, right_tip, left_base, left_tip):
+    print("[ik:test] regenerating leg URDFs...")
+    generate_leg_urdfs(
+        src_urdf=src_urdf,
+        out_dir=out_dir,
+        right_base=right_base,
+        right_tip=right_tip,
+        left_base=left_base,
+        left_tip=left_tip,
+    )
+
+    print("[ik:test] loading LegIK...")
+    ik = LegIK(out_dir)
+
+    print("[ik:test] checking output keys...")
+    r = ik.solve_right(np.array([0.02, 0.0, -0.20], dtype=float))
+    l = ik.solve_left(np.array([0.02, 0.0, -0.20], dtype=float))
+
+    r_expected = set(GAIT_RIGHT_ORDER)
+    l_expected = set(GAIT_LEFT_ORDER)
+
+    if set(r.keys()) != r_expected:
+        raise RuntimeError(f"[ik:test] right keys mismatch: got={sorted(r.keys())}, expected={sorted(r_expected)}")
+    if set(l.keys()) != l_expected:
+        raise RuntimeError(f"[ik:test] left keys mismatch: got={sorted(l.keys())}, expected={sorted(l_expected)}")
+
+    print("[ik:test] probing knee response over z sweep...")
+    z_vals = np.linspace(-0.16, -0.24, 7)
+    rk = []
+    lk = []
+    for z in z_vals:
+        rr = ik.solve_right(np.array([0.02, 0.0, z], dtype=float))
+        ll = ik.solve_left(np.array([0.02, 0.0, z], dtype=float))
+        rk.append(rr["right_knee_pitch"])
+        lk.append(ll["left_knee_pitch"])
+
+    r_span = max(rk) - min(rk)
+    l_span = max(lk) - min(lk)
+
+    print(f"[ik:test] right knee span: {r_span:.6f} rad")
+    print(f"[ik:test] left  knee span: {l_span:.6f} rad")
+    print(f"[ik:test] right knee seq: {[round(x, 4) for x in rk]}")
+    print(f"[ik:test] left  knee seq: {[round(x, 4) for x in lk]}")
+
+    if r_span < math.radians(2.0):
+        raise RuntimeError("[ik:test] right knee response too small")
+    if l_span < math.radians(2.0):
+        raise RuntimeError("[ik:test] left knee response too small")
+
+    for i in range(1, len(rk)):
+        if abs(rk[i] - rk[i - 1]) > math.radians(35):
+            raise RuntimeError("[ik:test] right knee has unnatural jump")
+    for i in range(1, len(lk)):
+        if abs(lk[i] - lk[i - 1]) > math.radians(35):
+            raise RuntimeError("[ik:test] left knee has unnatural jump")
+
+    print("[ik:test] OK")
 
 
 if __name__ == "__main__":
