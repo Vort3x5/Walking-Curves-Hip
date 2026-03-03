@@ -29,60 +29,31 @@ def joint_name_map(robot_id):
         m[info[1].decode("utf-8")] = i
     return m
 
-def score_joint(target, cand):
-    t = target.lower()
-    c = cand.lower()
-    s = 0
-    for tok in ["left", "right", "hip", "knee", "ankle", "pitch"]:
-        if tok in t and tok in c:
-            s += 3
-    if ("left" in t and ("left" in c or "_l" in c)) or ("right" in t and ("right" in c or "_r" in c)):
-        s += 4
-    if ("hip" in t and "hip" in c) or ("knee" in t and "knee" in c) or ("ankle" in t and "ankle" in c):
-        s += 5
-    if "revolute" in c:
-        s += 1
-    return s
-
-def find_joint(target, name_to_idx, used_names):
-    if target in name_to_idx and target not in used_names:
-        used_names.add(target)
-        return name_to_idx[target]
-    ranked = []
-    for n, idx in name_to_idx.items():
-        if n in used_names:
-            continue
-        sc = score_joint(target, n)
-        if sc > 0:
-            ranked.append((sc, n, idx))
-    if not ranked:
-        return None
-    ranked.sort(key=lambda x: x[0], reverse=True)
-    used_names.add(ranked[0][1])
-    return ranked[0][2]
-
 def build_pitch_map(name_to_idx):
-    req = [
-        "left_hip_pitch", "left_knee_pitch", "left_ankle_pitch",
-        "right_hip_pitch", "right_knee_pitch", "right_ankle_pitch",
-    ]
-    used = set()
+    hardcoded_map = {
+        "left_hip_pitch": "Revolute_4",
+        "left_knee_pitch": "Revolute_3",
+        "left_ankle_pitch": "Revolute_2",
+        "right_hip_pitch": "Revolute_10",
+        "right_knee_pitch": "Revolute_11",
+        "right_ankle_pitch": "Revolute_12",
+    }
     out = {}
-    for r in req:
-        j = find_joint(r, name_to_idx, used)
-        if j is None:
-            raise RuntimeError(f"Brak mapowania jointa: {r}")
-        out[r] = j
+    for req, urdf_name in hardcoded_map.items():
+        if urdf_name not in name_to_idx:
+            raise RuntimeError(f"Brak mapowania jointa: {urdf_name}")
+        out[req] = name_to_idx[urdf_name]
     return out
+
+def zero_non_pitch(robot_id, name_to_idx):
+    pitch_joints = {"Revolute_4", "Revolute_3", "Revolute_2", "Revolute_10", "Revolute_11", "Revolute_12"}
+    for name, idx in name_to_idx.items():
+        if name in pitch_joints:
+            continue
+        p.resetJointState(robot_id, idx, 0.0)
 
 def set_joint(robot_id, mp, key, val):
     p.resetJointState(robot_id, mp[key], val)
-
-def zero_non_pitch(robot_id, name_to_idx):
-    for name, idx in name_to_idx.items():
-        if "pitch" in name.lower():
-            continue
-        p.resetJointState(robot_id, idx, 0.0)
 
 def draw_text(old_id, txt, pos, color):
     if old_id is not None:
