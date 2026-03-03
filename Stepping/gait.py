@@ -22,17 +22,16 @@ except ImportError:
 HIP_WIDTH = 0.08
 THIGH_LEN = 0.15
 SHANK_LEN = 0.15
-STEP_LEN = 0.045
-STEP_HEIGHT = 0.03
-STAND_HEIGHT = -(THIGH_LEN + SHANK_LEN) * 0.88
+STEP_LEN = 0.03
+STEP_HEIGHT = 0.02
+STAND_HEIGHT = -(THIGH_LEN + SHANK_LEN) * 0.87
 
 RATE_HZ = 50
 DT = 1.0 / RATE_HZ
-SWING_TIME = 0.48
-TURN_STEP_ANGLE = math.radians(12)
+SWING_TIME = 0.56
+TURN_STEP_ANGLE = math.radians(10)
 
 PORT_CMD = "/robot/cmd"
-PORT_CMD_SRC = "/debug/sender"
 PORT_LEFT = "/gait/left/foot"
 PORT_RIGHT = "/gait/right/foot"
 PORT_LEFT_ANGLES = "/gait/left/angles"
@@ -51,9 +50,12 @@ _DEFAULT_CURVE_PROFILE = [
     [1.00, 0.00, 0.00],
 ]
 
-HIP_ROLL_MAX = math.radians(6.5)
-HIP_PITCH_MAX = math.radians(4.0)
-LEAN_FILTER = 0.18
+HIP_ROLL_MAX = math.radians(5.0)
+HIP_PITCH_MAX = math.radians(3.0)
+ANKLE_ROLL_COMP = 0.60
+ANKLE_PITCH_COMP = 0.55
+LEAN_FILTER = 0.16
+KNEE_BASE = math.radians(20.0)
 
 def add_f64(b, v):
     if hasattr(b, "addFloat64"):
@@ -174,7 +176,7 @@ class GaitCoordinator:
 
     def _advance_body(self):
         fwd = np.array([math.cos(self.heading), math.sin(self.heading)])
-        self.body_pos = self.body_pos + fwd * STEP_LEN * 0.42
+        self.body_pos = self.body_pos + fwd * STEP_LEN * 0.35
 
     def _start_swing(self, side):
         self.swing_side = side
@@ -201,8 +203,8 @@ class GaitCoordinator:
         support = Side.OTHER[self.swing_side] if self.state != GaitState.IDLE else Side.LEFT
         p = max(0.0, min(1.0, self.swing_t if self.state != GaitState.IDLE else 0.0))
         phase = math.sin(math.pi * p)
-        roll_target = (-HIP_ROLL_MAX if support == Side.LEFT else HIP_ROLL_MAX) * (0.55 + 0.45 * phase)
-        pitch_target = HIP_PITCH_MAX * (0.30 + 0.70 * phase) if self.state in (GaitState.STEPPING, GaitState.TURNING, GaitState.STOPPING) else 0.0
+        roll_target = (-HIP_ROLL_MAX if support == Side.LEFT else HIP_ROLL_MAX) * (0.60 + 0.40 * phase)
+        pitch_target = HIP_PITCH_MAX * (0.25 + 0.75 * phase) if self.state in (GaitState.STEPPING, GaitState.TURNING, GaitState.STOPPING) else 0.0
         self.hip_roll_bias += LEAN_FILTER * (roll_target - self.hip_roll_bias)
         self.hip_pitch_bias += LEAN_FILTER * (pitch_target - self.hip_pitch_bias)
 
@@ -298,20 +300,6 @@ class CmdListener(threading.Thread):
         self.port.interrupt()
         self.port.close()
 
-def apply_comp(angles, side, roll, pitch):
-    out = dict(angles)
-    if side == Side.LEFT:
-        out["left_hip_roll"] = out.get("left_hip_roll", 0.0) + roll
-        out["left_hip_pitch"] = out.get("left_hip_pitch", 0.0) + pitch
-        out["left_ankle_roll"] = out.get("left_ankle_roll", 0.0) - 0.6 * roll
-        out["left_ankle_pitch"] = out.get("left_ankle_pitch", 0.0) - 0.5 * pitch
-    else:
-        out["right_hip_roll"] = out.get("right_hip_roll", 0.0) + roll
-        out["right_hip_pitch"] = out.get("right_hip_pitch", 0.0) + pitch
-        out["right_ankle_roll"] = out.get("right_ankle_roll", 0.0) - 0.6 * roll
-        out["right_ankle_pitch"] = out.get("right_ankle_pitch", 0.0) - 0.5 * pitch
-    return out
-
 def open_port_unique(base_name):
     p = yarp.Port()
     if p.open(base_name):
@@ -324,6 +312,37 @@ def open_port_unique(base_name):
         return p, alt
     raise RuntimeError(f"cannot open yarp port: {base_name}")
 
+def simple_angles(side, swing_side, swing_t, roll_bias, pitch_bias):
+    p = max(0.0, min(1.0, swing_t))
+    s = math.sin(math.pi * p)
+    hip_pitch = 0.0
+    knee = KNEE_BASE
+    ankle_pitch = -0.5 * KNEE_BASE
+    if side == swing_side:
+        hip_pitch += math.radians(10.0) * s
+        knee += math.radians(14.0) * s
+        ankle_pitch -= math.radians(6.0) * s
+    else:
+        hip_pitch -= math.radians(3.0) * s
+        knee += math.radians(4.0) * s
+    if side == Side.LEFT:
+        return {
+            "left_hip_roll": roll_bias,
+            "left_hip_pitch": hip_pitch + pitch_bias,
+            "left_knee_pitch": knee,
+            "left_ankle_pitch": ankle_pitch - ANKLE_PITCH_COMP * pitch_bias,
+            "left_ankle_roll": -ANKLE_ROLL_COMP * roll_bias,
+            "left_ankle_yaw": 0.0
+        }
+    return {
+        "right_hip_roll": roll_bias,
+        "right_hip_pitch": hip_pitch + pitch_bias,
+        "right_knee_pitch": knee,
+        "right_ankle_pitch": ankle_pitch - ANKLE_PITCH_COMP * pitch_bias,
+        "right_ankle_roll": -ANKLE_ROLL_COMP * roll_bias,
+        "right_ankle_yaw": 0.0
+    }
+
 def gait_loop(gait, ports, ik):
     port_left, port_right, port_viz, port_left_angles, port_right_angles = ports
     while True:
@@ -335,6 +354,14 @@ def gait_loop(gait, ports, ik):
             for v in rel:
                 add_f64(b, v)
             port.write(b)
+
+        support = Side.OTHER[snap["swing_side"]] if snap["state"] != GaitState.IDLE else Side.LEFT
+        if support == Side.LEFT:
+            left_roll = snap["hip_roll_bias"]
+            right_roll = 0.0
+        else:
+            left_roll = 0.0
+            right_roll = snap["hip_roll_bias"]
 
         if ik is not None:
             foot_l, foot_r = snap["foot_world"][0], snap["foot_world"][1]
@@ -353,20 +380,28 @@ def gait_loop(gait, ports, ik):
             left_angles = ik.solve_left(to_hip_rel(foot_l, hip_world(Side.LEFT)))
             right_angles = ik.solve_right(to_hip_rel(foot_r, hip_world(Side.RIGHT)))
 
-            support = Side.OTHER[snap["swing_side"]] if snap["state"] != GaitState.IDLE else Side.LEFT
             if support == Side.LEFT:
-                left_angles = apply_comp(left_angles, Side.LEFT, snap["hip_roll_bias"], snap["hip_pitch_bias"])
+                left_angles["left_hip_roll"] = left_angles.get("left_hip_roll", 0.0) + snap["hip_roll_bias"]
+                left_angles["left_hip_pitch"] = left_angles.get("left_hip_pitch", 0.0) + snap["hip_pitch_bias"]
+                left_angles["left_ankle_roll"] = left_angles.get("left_ankle_roll", 0.0) - ANKLE_ROLL_COMP * snap["hip_roll_bias"]
+                left_angles["left_ankle_pitch"] = left_angles.get("left_ankle_pitch", 0.0) - ANKLE_PITCH_COMP * snap["hip_pitch_bias"]
             else:
-                right_angles = apply_comp(right_angles, Side.RIGHT, snap["hip_roll_bias"], snap["hip_pitch_bias"])
+                right_angles["right_hip_roll"] = right_angles.get("right_hip_roll", 0.0) + snap["hip_roll_bias"]
+                right_angles["right_hip_pitch"] = right_angles.get("right_hip_pitch", 0.0) + snap["hip_pitch_bias"]
+                right_angles["right_ankle_roll"] = right_angles.get("right_ankle_roll", 0.0) - ANKLE_ROLL_COMP * snap["hip_roll_bias"]
+                right_angles["right_ankle_pitch"] = right_angles.get("right_ankle_pitch", 0.0) - ANKLE_PITCH_COMP * snap["hip_pitch_bias"]
+        else:
+            left_angles = simple_angles(Side.LEFT, snap["swing_side"], snap["swing_t"], left_roll, snap["hip_pitch_bias"] if support == Side.LEFT else 0.0)
+            right_angles = simple_angles(Side.RIGHT, snap["swing_side"], snap["swing_t"], right_roll, snap["hip_pitch_bias"] if support == Side.RIGHT else 0.0)
 
-            for port_a, angles, order in [
-                (port_left_angles, left_angles, LEFT_JOINT_ORDER),
-                (port_right_angles, right_angles, RIGHT_JOINT_ORDER),
-            ]:
-                ab = yarp.Bottle()
-                for j in order:
-                    add_f64(ab, angles.get(j, 0.0))
-                port_a.write(ab)
+        for port_a, angles, order in [
+            (port_left_angles, left_angles, LEFT_JOINT_ORDER),
+            (port_right_angles, right_angles, RIGHT_JOINT_ORDER),
+        ]:
+            ab = yarp.Bottle()
+            for j in order:
+                add_f64(ab, angles.get(j, 0.0))
+            port_a.write(ab)
 
         vb = yarp.Bottle()
         vb.addString(snap["state"])
@@ -413,7 +448,7 @@ def main():
         try:
             ik = LegIK()
         except Exception as e:
-            print(f"[gait] IK load failed: {e}")
+            print(f"[gait] IK load failed, using fallback angles: {e}")
 
     threading.Thread(target=gait_loop, args=(gait, (port_left, port_right, port_viz, port_left_angles, port_right_angles), ik), daemon=True).start()
 

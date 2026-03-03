@@ -1,56 +1,51 @@
 #!/usr/bin/env python3
-"""
-ik_solver.py — IK solver for humanoid_beta robot
-
-Uses two minimal per-leg URDF files (leg_right.urdf, leg_left.urdf) that
-contain ONLY the joints of each leg. This means:
-  - ikpy builds a clean chain with no pelvis or unrelated links
-  - active_links_mask is not needed (all revolute joints are active by default)
-  - No warnings about fixed links
-  - Targets are hip-relative: [x, y, z] relative to GE_27_1 / GE_27_2
-
-Standing target ≈ [0, 0, -0.197]  (straight below hip, full leg extension)
-
-Right leg: GE_27_1 → Part_1_4_1     6 revolute joints: Revolute_6..1
-Left  leg: GE_27_2 → StopaLewa_v6_1  5 revolute joints: Revolute_7..11
-
-YARP bottles:
-  /gait/right/angles  6 floats (Revolute_6,5,4,3,2,1)  radians
-  /gait/left/angles   5 floats (Revolute_7,8,9,10,11)  radians
-
-Install:  pip install ikpy
-Generate leg URDFs: already done — leg_right.urdf and leg_left.urdf
-Test:     python3 ik_solver.py
-"""
-
-import os, math, warnings
+import os
+import sys
+import argparse
+import warnings
 import numpy as np
+import xml.etree.ElementTree as ET
+from collections import deque
 
 try:
     from ikpy.chain import Chain
 except ImportError:
-    raise ImportError("ikpy not installed.  Run:  pip install ikpy")
+    raise ImportError("ikpy not installed. Run: pip install ikpy")
 
-# Joint names in output order (must match joint names in the leg URDF files)
-JOINTS_RIGHT = ["Revolute_6", "Revolute_5", "Revolute_4",
-                "Revolute_3", "Revolute_2", "Revolute_1"]
-JOINTS_LEFT  = ["Revolute_7", "Revolute_8", "Revolute_9",
-                "Revolute_10", "Revolute_11"]
+RIGHT_BASE_LINK = "GE_27_1"
+LEFT_BASE_LINK = "GE_27_2"
+RIGHT_TIP_LINK = "StopaPrawa_1"
+LEFT_TIP_LINK = "StopaLewa_1"
 
-# Standing foot position relative to hip attachment link
+GAIT_RIGHT_ORDER = [
+    "right_hip_roll",
+    "right_hip_pitch",
+    "right_knee_pitch",
+    "right_ankle_pitch",
+    "right_ankle_roll",
+    "right_ankle_yaw",
+]
+
+GAIT_LEFT_ORDER = [
+    "left_hip_roll",
+    "left_hip_pitch",
+    "left_knee_pitch",
+    "left_ankle_pitch",
+    "left_ankle_roll",
+    "left_ankle_yaw",
+]
+
 STAND_TARGET = [0.0, 0.0, -0.197]
 
 
+def _ns_prefix(tag):
+    if tag.startswith("{") and "}" in tag:
+        return tag.split("}", 1)[0] + "}"
+    return ""
+
+
 class _LegChain:
-    """
-    One ikpy chain for one leg, loaded from a minimal per-leg URDF.
-    The chain starts from the hip attachment link so targets are hip-relative.
-    Warm-start reuses the previous solution for speed and stability.
-    """
-
-    def __init__(self, urdf_path, base_link, joint_names):
-        self.joint_names = joint_names
-
+    def __init__(self, urdf_path, base_link):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             self.chain = Chain.from_urdf_file(
@@ -59,26 +54,22 @@ class _LegChain:
                 last_link_vector=[0, 0, 0],
             )
 
-        n = len(self.chain.links)
-        rev = [l.name for l in self.chain.links if l.name in joint_names]
-        print(f"[ik]   {urdf_path}: {n} links, {len(rev)} revolute: {rev}")
+        self.link_names = [l.name for l in self.chain.links]
+        self._last = [0.0] * len(self.chain.links)
 
-        # Read joint limits for output clamping
+        mask = getattr(self.chain, "active_links_mask", None)
+        if mask is None:
+            mask = [False] * len(self.chain.links)
+        self.active_names = [self.chain.links[i].name for i, m in enumerate(mask) if bool(m)]
+
         self.limits = {}
-        for lnk in self.chain.links:
-            if lnk.name in joint_names and hasattr(lnk, "bounds"):
-                lo, hi = lnk.bounds
+        for i, l in enumerate(self.chain.links):
+            if l.name in self.active_names and hasattr(l, "bounds") and l.bounds is not None:
+                lo, hi = l.bounds
                 if lo is not None and hi is not None:
-                    self.limits[lnk.name] = (lo, hi)
-
-        # Warm-start vector sized to actual chain length
-        self._last = [0.0] * n
+                    self.limits[l.name] = (float(lo), float(hi))
 
     def solve(self, target_xyz):
-        """
-        target_xyz: [x, y, z] relative to base_link (hip attachment).
-        Returns {joint_name: angle_radians}.
-        """
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             angles = self.chain.inverse_kinematics(
@@ -88,187 +79,194 @@ class _LegChain:
             )
         self._last = list(angles)
 
-        result = {}
-        for i, lnk in enumerate(self.chain.links):
-            if lnk.name in self.joint_names:
+        out = {}
+        mask = getattr(self.chain, "active_links_mask", [False] * len(self.chain.links))
+        for i, l in enumerate(self.chain.links):
+            if bool(mask[i]):
                 a = float(angles[i])
-                if lnk.name in self.limits:
-                    a = max(self.limits[lnk.name][0],
-                            min(self.limits[lnk.name][1], a))
-                result[lnk.name] = a
-        return result
+                if l.name in self.limits:
+                    lo, hi = self.limits[l.name]
+                    a = max(lo, min(hi, a))
+                out[l.name] = a
+        return out
 
     def reset(self):
         self._last = [0.0] * len(self.chain.links)
 
 
 class LegIK:
-    """
-    IK solver for humanoid_beta robot.
-
-    Expects leg_right.urdf and leg_left.urdf in the same folder.
-    These are generated automatically by running:
-        python3 ik_solver.py --gen-urdfs humanoid_beta.urdf
-
-    Target convention (both legs):
-        [x, y, z] relative to the hip attachment link
-        x = forward (robot heading direction)
-        y = lateral
-        z = up  (negative = below hip)
-        Standing: approx [0, 0, -0.197]
-    """
-
     def __init__(self, urdf_dir=None):
         if urdf_dir is None:
             urdf_dir = os.path.dirname(os.path.abspath(__file__))
 
-        r_path = os.path.join(urdf_dir, "leg_right.urdf")
-        l_path = os.path.join(urdf_dir, "leg_left.urdf")
+        self.r_path = os.path.join(urdf_dir, "leg_right.urdf")
+        self.l_path = os.path.join(urdf_dir, "leg_left.urdf")
 
-        for p in (r_path, l_path):
-            if not os.path.exists(p):
-                raise FileNotFoundError(
-                    f"[ik] Missing: {p}\n"
-                    "Generate with:  python3 ik_solver.py --gen-urdfs humanoid_beta.urdf"
-                )
+        for p in (self.r_path, self.l_path):
+            if not os.path.exists(p) or os.path.getsize(p) < 64:
+                raise FileNotFoundError(f"Missing or empty: {p}")
 
-        print(f"[ik] Loading right leg: {r_path}")
-        self._right = _LegChain(r_path, "GE_27_1", JOINTS_RIGHT)
-        print(f"[ik] Loading left  leg: {l_path}")
-        self._left  = _LegChain(l_path, "GE_27_2", JOINTS_LEFT)
+        self._right = _LegChain(self.r_path, RIGHT_BASE_LINK)
+        self._left = _LegChain(self.l_path, LEFT_BASE_LINK)
 
-        print("[ik] Warming up...")
+        self._right_map = self._build_name_map(self._right, GAIT_RIGHT_ORDER, "right")
+        self._left_map = self._build_name_map(self._left, GAIT_LEFT_ORDER, "left")
+
         self.solve_right(np.array(STAND_TARGET))
-        self.solve_left( np.array(STAND_TARGET))
-        print("[ik] Ready.")
+        self.solve_left(np.array(STAND_TARGET))
+
+    @staticmethod
+    def _build_name_map(chain_obj, gait_order, leg_name):
+        names = chain_obj.active_names
+        if len(names) < 6:
+            dbg = ", ".join(chain_obj.link_names)
+            raise RuntimeError(
+                f"[ik] {leg_name}: not enough active joints ({len(names)}). "
+                f"active={names}; chain_links=[{dbg}]"
+            )
+        selected = names[-6:]
+        return dict(zip(gait_order, selected))
+
+    @staticmethod
+    def _remap(raw, mp):
+        return {g: raw.get(i, 0.0) for g, i in mp.items()}
 
     def solve_right(self, foot_xyz_hip_rel):
-        """foot_xyz relative to GE_27_1 (right hip). Returns {joint: radians}."""
-        return self._right.solve(np.asarray(foot_xyz_hip_rel, dtype=float))
+        raw = self._right.solve(np.asarray(foot_xyz_hip_rel, dtype=float))
+        return self._remap(raw, self._right_map)
 
     def solve_left(self, foot_xyz_hip_rel):
-        """foot_xyz relative to GE_27_2 (left hip). Returns {joint: radians}."""
-        return self._left.solve(np.asarray(foot_xyz_hip_rel, dtype=float))
+        raw = self._left.solve(np.asarray(foot_xyz_hip_rel, dtype=float))
+        return self._remap(raw, self._left_map)
 
     def solve_both(self, left_xyz, right_xyz):
-        """Solve both legs, return flat dict of all joints."""
-        r = {}
-        r.update(self.solve_right(np.asarray(right_xyz, dtype=float)))
-        r.update(self.solve_left( np.asarray(left_xyz,  dtype=float)))
-        return r
-
-    def joint_names_right(self): return list(JOINTS_RIGHT)
-    def joint_names_left(self):  return list(JOINTS_LEFT)
+        out = {}
+        out.update(self.solve_left(np.asarray(left_xyz, dtype=float)))
+        out.update(self.solve_right(np.asarray(right_xyz, dtype=float)))
+        return out
 
     def reset(self):
         self._right.reset()
         self._left.reset()
 
 
-# ── URDF generator ────────────────────────────────────────────────────────────
-
-def generate_leg_urdfs(src_urdf, out_dir):
-    """
-    Extract per-leg URDF files from the full robot URDF.
-    Call this once whenever humanoid_beta.urdf changes.
-    """
-    import xml.etree.ElementTree as ET
-    from collections import deque
-
+def generate_leg_urdfs(src_urdf, out_dir, right_base, right_tip, left_base, left_tip):
     tree = ET.parse(src_urdf)
-    root_el = tree.getroot()
-    joints_raw = {j.get('name'): j for j in root_el.findall('joint')}
+    root = tree.getroot()
+    ns = _ns_prefix(root.tag)
 
-    def get_chain(start, end):
-        children = {}
-        for jn, j in joints_raw.items():
-            p = j.find('parent').get('link')
-            if p not in children: children[p] = []
-            children[p].append((jn, j.find('child').get('link')))
-        q = deque([(start, [])])
+    def all_e(name):
+        return root.findall(f"{ns}{name}")
+
+    links = {l.get("name"): l for l in all_e("link") if l.get("name")}
+    joints = {j.get("name"): j for j in all_e("joint") if j.get("name")}
+
+    graph = {}
+    edge_info = {}
+    for jn, j in joints.items():
+        p = j.find(f"{ns}parent")
+        c = j.find(f"{ns}child")
+        if p is None or c is None:
+            continue
+        pl = p.get("link")
+        cl = c.get("link")
+        if not pl or not cl:
+            continue
+        graph.setdefault(pl, []).append(cl)
+        graph.setdefault(cl, []).append(pl)
+        edge_info[(pl, cl)] = (jn, pl, cl)
+        edge_info[(cl, pl)] = (jn, pl, cl)
+
+    def find_link_path(start, end):
+        q = deque([start])
+        prev = {start: None}
         while q:
-            link, path = q.popleft()
-            if link == end: return path
-            for jn, child in children.get(link, []):
-                q.append((child, path + [(jn, child)]))
-        return []
+            u = q.popleft()
+            if u == end:
+                break
+            for v in graph.get(u, []):
+                if v not in prev:
+                    prev[v] = u
+                    q.append(v)
+        if end not in prev:
+            return None
+        path = []
+        cur = end
+        while cur is not None:
+            path.append(cur)
+            cur = prev[cur]
+        path.reverse()
+        return path
 
-    def write_urdf(chain, base_link, tip_link, filename):
-        link_names = {base_link, tip_link}
-        for jn, cl in chain:
-            j = joints_raw[jn]
-            link_names.add(j.find('parent').get('link'))
-            link_names.add(cl)
-        lines = ['<?xml version="1.0"?>', '<robot name="leg">']
-        for ln in sorted(link_names):
+    def make_leg(base_link, tip_link, out_name):
+        link_path = find_link_path(base_link, tip_link)
+        if link_path is None:
+            raise RuntimeError(f"[ik] no path found: {base_link} -> {tip_link}")
+
+        edges = []
+        for i in range(len(link_path) - 1):
+            u, v = link_path[i], link_path[i + 1]
+            edges.append(edge_info[(u, v)])
+
+        lines = [f'<robot name="leg_{out_name.replace(".urdf","")}">']
+        for ln in sorted(set(link_path)):
             lines.append(f'  <link name="{ln}"/>')
-        for jn, cl in chain:
-            j = joints_raw[jn]
-            jtype = j.get('type')
-            parent = j.find('parent').get('link')
-            origin = j.find('origin')
-            xyz = origin.get('xyz','0 0 0') if origin is not None else '0 0 0'
-            rpy = origin.get('rpy','0 0 0') if origin is not None else '0 0 0'
-            axis_el = j.find('axis')
-            axis = axis_el.get('xyz','0 0 1') if axis_el is not None else '0 0 1'
-            limit_el = j.find('limit')
-            lines += [f'  <joint name="{jn}" type="{jtype}">',
-                      f'    <parent link="{parent}"/>',
-                      f'    <child link="{cl}"/>',
-                      f'    <origin xyz="{xyz}" rpy="{rpy}"/>']
-            if jtype == 'revolute':
+
+        for (jn, parent_orig, child_orig) in edges:
+            j = joints[jn]
+            jtype = j.get("type", "fixed")
+            origin = j.find(f"{ns}origin")
+            axis_el = j.find(f"{ns}axis")
+            xyz = origin.get("xyz", "0 0 0") if origin is not None else "0 0 0"
+            rpy = origin.get("rpy", "0 0 0") if origin is not None else "0 0 0"
+            axis = axis_el.get("xyz", "0 0 1") if axis_el is not None else "0 0 1"
+
+            lines.append(f'  <joint name="{jn}" type="{jtype}">')
+            lines.append(f'    <parent link="{parent_orig}"/>')
+            lines.append(f'    <child link="{child_orig}"/>')
+            lines.append(f'    <origin xyz="{xyz}" rpy="{rpy}"/>')
+            if jtype != "fixed":
                 lines.append(f'    <axis xyz="{axis}"/>')
-                # Use ±pi regardless of URDF limits — CAD-exported limits like
-                # 261°–458° are raw encoder offsets that put 0.0 outside bounds,
-                # crashing the warm-start. Firmware enforces real limits.
-                lines.append('    <limit effort="10" velocity="5" lower="-3.14159" upper="3.14159"/>')
-            lines.append('  </joint>')
-        lines.append('</robot>')
-        path = os.path.join(out_dir, filename)
-        with open(path, 'w') as f:
-            f.write('\n'.join(lines))
-        rev = sum(1 for jn,_ in chain if joints_raw[jn].get('type')=='revolute')
-        print(f"[ik] Generated {path}  ({len(chain)} joints, {rev} revolute)")
+            if jtype == "revolute":
+                lines.append('    <limit lower="-3.1415926535" upper="3.1415926535" effort="1000" velocity="1000"/>')
+            lines.append("  </joint>")
 
-    write_urdf(get_chain('GE_27_1','Part_1_4_1'),    'GE_27_1','Part_1_4_1',    'leg_right.urdf')
-    write_urdf(get_chain('GE_27_2','StopaLewa_v6_1'),'GE_27_2','StopaLewa_v6_1','leg_left.urdf')
+        lines.append("</robot>")
+        out_path = os.path.join(out_dir, out_name)
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+        print(f"[ik] generated {out_path} with {len(edges)} joints")
 
+    if right_base not in links or right_tip not in links or left_base not in links or left_tip not in links:
+        raise RuntimeError("One of base/tip links does not exist in URDF")
 
-# ── Standalone ────────────────────────────────────────────────────────────────
+    os.makedirs(out_dir, exist_ok=True)
+    make_leg(right_base, right_tip, "leg_right.urdf")
+    make_leg(left_base, left_tip, "leg_left.urdf")
+
 
 if __name__ == "__main__":
-    import sys
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--gen-urdfs", type=str, default=None)
+    ap.add_argument("--out", type=str, default=None)
+    ap.add_argument("--right-base", type=str, default=RIGHT_BASE_LINK)
+    ap.add_argument("--right-tip", type=str, default=RIGHT_TIP_LINK)
+    ap.add_argument("--left-base", type=str, default=LEFT_BASE_LINK)
+    ap.add_argument("--left-tip", type=str, default=LEFT_TIP_LINK)
+    args = ap.parse_args()
 
-    # python3 ik_solver.py --gen-urdfs humanoid_beta.urdf
-    if "--gen-urdfs" in sys.argv:
-        idx = sys.argv.index("--gen-urdfs")
-        src = sys.argv[idx+1]
-        out = os.path.dirname(os.path.abspath(src))
-        generate_leg_urdfs(src, out)
+    if args.gen_urdfs:
+        out = args.out if args.out else os.path.dirname(os.path.abspath(__file__))
+        generate_leg_urdfs(
+            src_urdf=args.gen_urdfs,
+            out_dir=out,
+            right_base=args.right_base,
+            right_tip=args.right_tip,
+            left_base=args.left_base,
+            left_tip=args.left_tip,
+        )
         sys.exit(0)
 
-    print()
     ik = LegIK()
-
-    print("\n── Right leg (relative to GE_27_1) ──────────────────────────────────")
-    hdr = f"{'pose':<16}" + "".join(f"  {j.replace('Revolute_','R'):<8}" for j in JOINTS_RIGHT)
-    print(hdr); print("─"*len(hdr))
-    for name, pos in [("stand",     [0.00, 0.00,-0.197]),
-                      ("step fwd",  [0.04, 0.00,-0.185]),
-                      ("mid swing", [0.02, 0.00,-0.160]),
-                      ("deep bend", [0.00, 0.00,-0.150])]:
-        a = ik.solve_right(np.array(pos))
-        vals = "".join(f"  {math.degrees(a.get(j,0)):>+6.1f}°" for j in JOINTS_RIGHT)
-        print(f"{name:<16}{vals}")
-
-    print("\n── Left leg (relative to GE_27_2) ───────────────────────────────────")
-    hdr2 = f"{'pose':<16}" + "".join(f"  {j.replace('Revolute_','R'):<8}" for j in JOINTS_LEFT)
-    print(hdr2); print("─"*len(hdr2))
-    for name, pos in [("stand",     [0.00, 0.00,-0.197]),
-                      ("step fwd",  [0.04, 0.00,-0.185]),
-                      ("mid swing", [0.02, 0.00,-0.160])]:
-        a = ik.solve_left(np.array(pos))
-        vals = "".join(f"  {math.degrees(a.get(j,0)):>+6.1f}°" for j in JOINTS_LEFT)
-        print(f"{name:<16}{vals}")
-
-    print("\nDone.")
+    print("[ik] right:", ik.solve_right(np.array([0.02, 0.0, -0.18])))
+    print("[ik] left: ", ik.solve_left(np.array([0.02, 0.0, -0.18])))
