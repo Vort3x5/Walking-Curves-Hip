@@ -45,15 +45,15 @@ def build_pitch_map(name_to_idx):
         out[req] = name_to_idx[urdf_name]
     return out
 
+def set_joint(robot_id, mp, key, val):
+    p.resetJointState(robot_id, mp[key], val)
+
 def zero_non_pitch(robot_id, name_to_idx):
     pitch_joints = {"Revolute_4", "Revolute_3", "Revolute_2", "Revolute_10", "Revolute_11", "Revolute_12"}
     for name, idx in name_to_idx.items():
         if name in pitch_joints:
             continue
         p.resetJointState(robot_id, idx, 0.0)
-
-def set_joint(robot_id, mp, key, val):
-    p.resetJointState(robot_id, mp[key], val)
 
 def draw_text(old_id, txt, pos, color):
     if old_id is not None:
@@ -117,10 +117,10 @@ def main():
         lh, lk = simple_angles(0, swing_side, swing_t)
         rh, rk = simple_angles(1, swing_side, swing_t)
 
-        la_raw = -0.5 * KNEE_BASE
-        ra_raw = -0.5 * KNEE_BASE
-        la_comp = -(lh + lk) + ankle_offset
-        ra_comp = -(rh + rk) + ankle_offset
+        la_raw = -KNEE_BASE
+        ra_raw = -KNEE_BASE
+        la_comp = -lh + lk + ankle_offset
+        ra_comp = rh - rk + ankle_offset
 
         if args.mode == "raw":
             zero_non_pitch(rid, one_names)
