@@ -3,468 +3,641 @@
   <link name="Mocowanie_1">
     <visual name="Mocowanie_1_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Mocowanie_1.stl"/></geometry>
-      <material name="Mocowanie_1-material"><color rgba="1 1 1 1"/></material>
+      <geometry>
+        <mesh filename="meshes/Mocowanie_1.stl"/>
+      </geometry>
+      <material name="Mocowanie_1-material">
+        <color rgba="1 1 1 1"/>
+      </material>
     </visual>
     <collision name="Mocowanie_1_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Mocowanie_1.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/Mocowanie_1.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.041493277"/>
-      <inertia ixx="1.5463689e-05" iyy="4.8642155e-05" izz="5.0962241e-05" ixy="0" ixz="0" iyz="-2.3212331e-06"/>
+      <inertia ixx="1.5463689e-05" iyy="4.8642155e-05" izz="5.0962241e-05" ixy="6.5145832e-12" ixz="1.8884935e-11" iyz="-2.3212331e-06"/>
       <origin xyz="-0.053841476 -0.3162033 0.017354767" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="GE_27_3">
     <visual name="GE_27_3_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/GE_27_3.stl"/></geometry>
-      <material name="GE_27_3-material"><color rgba="1 0 1 1"/></material>
+      <geometry>
+        <mesh filename="meshes/GE_27_3.stl"/>
+      </geometry>
+      <material name="GE_27_3-material">
+        <color rgba="1 0 0.5 1"/>
+      </material>
     </visual>
     <collision name="GE_27_3_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/GE_27_3.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/GE_27_3.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.092117424"/>
-      <inertia ixx="2.3275613e-05" iyy="1.239009e-05" izz="1.9826464e-05" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="2.3275613e-05" iyy="1.239009e-05" izz="1.9826464e-05" ixy="-4.3658671e-09" ixz="3.9917175e-09" iyz="-6.1376828e-08"/>
       <origin xyz="-4.0711194e-06 -0.012378876 0.018821527" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="gacieOgarniete_1">
     <visual name="gacieOgarniete_1_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/gacieOgarniete_1.stl"/></geometry>
-      <material name="gacieOgarniete_1-material"><color rgba="0 1 0 1"/></material>
+      <geometry>
+        <mesh filename="meshes/gacieOgarniete_1.stl"/>
+      </geometry>
+      <material name="gacieOgarniete_1-material">
+        <color rgba="1 0 0.5 1"/>
+      </material>
     </visual>
     <collision name="gacieOgarniete_1_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/gacieOgarniete_1.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/gacieOgarniete_1.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.09292403"/>
-      <inertia ixx="0.00013343721" iyy="2.0684565e-05" izz="0.00012184505" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="0.00013343721" iyy="2.0684565e-05" izz="0.00012184505" ixy="0" ixz="1.0032396e-09" iyz="0"/>
       <origin xyz="-0.0013308756 -0.010249996 -0.016717569" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="GE_27_1">
     <visual name="GE_27_1_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/GE_27_1.stl"/></geometry>
-      <material name="GE_27_1-material"><color rgba="0 0 1 1"/></material>
+      <geometry>
+        <mesh filename="meshes/GE_27_1.stl"/>
+      </geometry>
+      <material name="GE_27_1-material">
+        <color rgba="1 1 0 1"/>
+      </material>
     </visual>
     <collision name="GE_27_1_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/GE_27_1.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/GE_27_1.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.092117424"/>
-      <inertia ixx="1.239009e-05" iyy="2.3275613e-05" izz="1.9826464e-05" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="1.239009e-05" iyy="2.3275613e-05" izz="1.9826464e-05" ixy="4.3658671e-09" ixz="6.1376828e-08" iyz="3.9917175e-09"/>
       <origin xyz="-0.020371124 -0.010254071 -0.016378473" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="GE_27_2">
     <visual name="GE_27_2_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/GE_27_2.stl"/></geometry>
-      <material name="GE_27_2-material"><color rgba="0 0 0 1"/></material>
+      <geometry>
+        <mesh filename="meshes/GE_27_2.stl"/>
+      </geometry>
+      <material name="GE_27_2-material">
+        <color rgba="1 1 1 1"/>
+      </material>
     </visual>
     <collision name="GE_27_2_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/GE_27_2.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/GE_27_2.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.092117424"/>
-      <inertia ixx="1.239009e-05" iyy="2.3275613e-05" izz="1.9826464e-05" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="1.239009e-05" iyy="2.3275613e-05" izz="1.9826464e-05" ixy="4.3658671e-09" ixz="6.1376828e-08" iyz="3.9917175e-09"/>
       <origin xyz="-0.020371124 0.010245929 -0.016378473" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="Segment1Lewy_2">
     <visual name="Segment1Lewy_2_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment1Lewy_2.stl"/></geometry>
-      <material name="Segment1Lewy_2-material"><color rgba="1 0 0.5 1"/></material>
+      <geometry>
+        <mesh filename="meshes/Segment1Lewy_2.stl"/>
+      </geometry>
+      <material name="Segment1Lewy_2-material">
+        <color rgba="1 0 0.5 1"/>
+      </material>
     </visual>
     <collision name="Segment1Lewy_2_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment1Lewy_2.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/Segment1Lewy_2.stl"/>
+      </geometry>
     </collision>
     <inertial>
-      <mass value="0.01"/>
-      <inertia ixx="1e-05" iyy="1e-05" izz="1e-05" ixy="0" ixz="0" iyz="0"/>
-      <origin xyz="0 0 0.0016870893" rpy="0 0 0"/>
+      <mass value="0.00078950187"/>
+      <inertia ixx="2.1081849e-08" iyy="2.1081849e-08" izz="4.0345426e-08" ixy="0" ixz="0" iyz="0"/>
+      <origin xyz="-2.7894654e-09 4.0830217e-09 0.0016870893" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="Segment1Prawypierwszy_2">
     <visual name="Segment1Prawypierwszy_2_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment1Prawypierwszy_2.stl"/></geometry>
-      <material name="Segment1Prawypierwszy_2-material"><color rgba="0 0 0 1"/></material>
+      <geometry>
+        <mesh filename="meshes/Segment1Prawypierwszy_2.stl"/>
+      </geometry>
+      <material name="Segment1Prawypierwszy_2-material">
+        <color rgba="1 1 1 1"/>
+      </material>
     </visual>
     <collision name="Segment1Prawypierwszy_2_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment1Prawypierwszy_2.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/Segment1Prawypierwszy_2.stl"/>
+      </geometry>
     </collision>
     <inertial>
-      <mass value="0.01"/>
-      <inertia ixx="1e-05" iyy="1e-05" izz="1e-05" ixy="0" ixz="0" iyz="0"/>
-      <origin xyz="0 0 -0.0016870893" rpy="0 0 0"/>
+      <mass value="0.00078950187"/>
+      <inertia ixx="2.1081849e-08" iyy="2.1081849e-08" izz="4.0345426e-08" ixy="0" ixz="0" iyz="0"/>
+      <origin xyz="4.0830217e-09 2.7894654e-09 -0.0016870893" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="Segment1Lewy_1">
     <visual name="Segment1Lewy_1_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment1Lewy_1.stl"/></geometry>
-      <material name="Segment1Lewy_1-material"><color rgba="1 1 1 1"/></material>
+      <geometry>
+        <mesh filename="meshes/Segment1Lewy_1.stl"/>
+      </geometry>
+      <material name="Segment1Lewy_1-material">
+        <color rgba="0 0 1 1"/>
+      </material>
     </visual>
     <collision name="Segment1Lewy_1_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment1Lewy_1.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/Segment1Lewy_1.stl"/>
+      </geometry>
     </collision>
     <inertial>
-      <mass value="0.015041115"/>
-      <inertia ixx="2.335e-06" iyy="5.126e-06" izz="6.100e-06" ixy="0" ixz="0" iyz="0"/>
+      <mass value="0"/>
+      <inertia ixx="0" iyy="0" izz="0" ixy="0" ixz="0" iyz="0"/>
       <origin xyz="0.01185779 -0.02607359 -0.02488321" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="Segment1Prawypierwszy_1">
     <visual name="Segment1Prawypierwszy_1_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment1Prawypierwszy_1.stl"/></geometry>
-      <material name="Segment1Prawypierwszy_1-material"><color rgba="0 1 0 1"/></material>
+      <geometry>
+        <mesh filename="meshes/Segment1Prawypierwszy_1.stl"/>
+      </geometry>
+      <material name="Segment1Prawypierwszy_1-material">
+        <color rgba="0 0 1 1"/>
+      </material>
     </visual>
     <collision name="Segment1Prawypierwszy_1_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment1Prawypierwszy_1.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/Segment1Prawypierwszy_1.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.015041115"/>
-      <inertia ixx="2.335e-06" iyy="5.126e-06" izz="6.100e-06" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="2.3352063e-06" iyy="5.1264929e-06" izz="6.1000448e-06" ixy="-6.2373627e-08" ixz="-1.1900249e-09" iyz="2.9662499e-07"/>
       <origin xyz="-0.0003414258 0.014547946 -0.0043729253" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="WJ-WK00-0018_45_5">
     <visual name="WJ-WK00-0018_45_5_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_5.stl"/></geometry>
-      <material name="WJ-WK00-0018_45_5-material"><color rgba="0 0 1 1"/></material>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_5.stl"/>
+      </geometry>
+      <material name="WJ-WK00-0018_45_5-material">
+        <color rgba="1 1 1 1"/>
+      </material>
     </visual>
     <collision name="WJ-WK00-0018_45_5_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_5.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_5.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.03108367"/>
-      <inertia ixx="9.0247663e-06" iyy="1.2566783e-05" izz="6.3144318e-06" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="9.0247663e-06" iyy="1.2566783e-05" izz="6.3144318e-06" ixy="-2.5414708e-08" ixz="7.1049103e-08" iyz="-1.4760201e-08"/>
       <origin xyz="0.019397661 5.4042443e-05 0.017039055" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="WJ-WK00-0018_45_6">
     <visual name="WJ-WK00-0018_45_6_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_6.stl"/></geometry>
-      <material name="WJ-WK00-0018_45_6-material"><color rgba="1 1 0 1"/></material>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_6.stl"/>
+      </geometry>
+      <material name="WJ-WK00-0018_45_6-material">
+        <color rgba="0 0 1 1"/>
+      </material>
     </visual>
     <collision name="WJ-WK00-0018_45_6_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_6.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_6.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.03108367"/>
-      <inertia ixx="9.0247663e-06" iyy="1.2566783e-05" izz="6.3144318e-06" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="9.0247663e-06" iyy="1.2566783e-05" izz="6.3144318e-06" ixy="2.5414708e-08" ixz="-7.1049103e-08" iyz="-1.4760201e-08"/>
       <origin xyz="0.019397661 -5.4042443e-05 -0.012539055" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="Part_2_2">
     <visual name="Part_2_2_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Part_2_2.stl"/></geometry>
-      <material name="Part_2_2-material"><color rgba="1 1 1 1"/></material>
+      <geometry>
+        <mesh filename="meshes/Part_2_2.stl"/>
+      </geometry>
+      <material name="Part_2_2-material">
+        <color rgba="0 1 1 1"/>
+      </material>
     </visual>
     <collision name="Part_2_2_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Part_2_2.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/Part_2_2.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.025206947"/>
-      <inertia ixx="1.5877171e-05" iyy="1.664679e-05" izz="7.3701166e-06" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="1.5877171e-05" iyy="1.664679e-05" izz="7.3701166e-06" ixy="-4.7213446e-08" ixz="-5.231926e-08" iyz="-9.992287e-08"/>
       <origin xyz="-9.9047295e-05 0.014363016 -0.024393922" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="Part_2_3">
     <visual name="Part_2_3_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Part_2_3.stl"/></geometry>
-      <material name="Part_2_3-material"><color rgba="1 1 1 1"/></material>
+      <geometry>
+        <mesh filename="meshes/Part_2_3.stl"/>
+      </geometry>
+      <material name="Part_2_3-material">
+        <color rgba="1 1 0 1"/>
+      </material>
     </visual>
     <collision name="Part_2_3_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Part_2_3.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/Part_2_3.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.025206947"/>
-      <inertia ixx="1.664679e-05" iyy="1.5877171e-05" izz="7.3701166e-06" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="1.664679e-05" iyy="1.5877171e-05" izz="7.3701166e-06" ixy="-4.7213446e-08" ixz="9.992287e-08" iyz="5.231926e-08"/>
       <origin xyz="0.014363016 -9.9047295e-05 0.024393922" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="WJ-WK00-0018_45_4">
     <visual name="WJ-WK00-0018_45_4_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_4.stl"/></geometry>
-      <material name="WJ-WK00-0018_45_4-material"><color rgba="0 0 0 1"/></material>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_4.stl"/>
+      </geometry>
+      <material name="WJ-WK00-0018_45_4-material">
+        <color rgba="0 0 0 1"/>
+      </material>
     </visual>
     <collision name="WJ-WK00-0018_45_4_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_4.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_4.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.03108367"/>
-      <inertia ixx="9.0247663e-06" iyy="1.2566783e-05" izz="6.3144318e-06" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="9.0247663e-06" iyy="1.2566783e-05" izz="6.3144318e-06" ixy="-2.5414708e-08" ixz="7.1049103e-08" iyz="-1.4760201e-08"/>
       <origin xyz="0.019397661 5.4042443e-05 0.017039055" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="WJ-WK00-0018_45_7">
     <visual name="WJ-WK00-0018_45_7_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_7.stl"/></geometry>
-      <material name="WJ-WK00-0018_45_7-material"><color rgba="0 1 0 1"/></material>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_7.stl"/>
+      </geometry>
+      <material name="WJ-WK00-0018_45_7-material">
+        <color rgba="1 0 0.5 1"/>
+      </material>
     </visual>
     <collision name="WJ-WK00-0018_45_7_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_7.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_7.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.03108367"/>
-      <inertia ixx="9.0247663e-06" iyy="1.2566783e-05" izz="6.3144318e-06" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="9.0247663e-06" iyy="1.2566783e-05" izz="6.3144318e-06" ixy="2.5414708e-08" ixz="-7.1049103e-08" iyz="-1.4760201e-08"/>
       <origin xyz="0.019397661 -5.4042443e-05 -0.012539055" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="Segment3-4_2">
     <visual name="Segment3-4_2_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment3-4_2.stl"/></geometry>
-      <material name="Segment3-4_2-material"><color rgba="1 0 0 1"/></material>
+      <geometry>
+        <mesh filename="meshes/Segment3-4_2.stl"/>
+      </geometry>
+      <material name="Segment3-4_2-material">
+        <color rgba="0 0 0 1"/>
+      </material>
     </visual>
     <collision name="Segment3-4_2_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment3-4_2.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/Segment3-4_2.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.043866671"/>
-      <inertia ixx="2.3128062e-05" iyy="5.0814086e-05" izz="3.0587232e-05" ixy="0" ixz="0" iyz="0"/>
-      <origin xyz="0.053367179 0 -0.024644146" rpy="0 0 0"/>
+      <inertia ixx="2.3128062e-05" iyy="5.0814086e-05" izz="3.0587232e-05" ixy="1.1754534e-11" ixz="-1.9947672e-07" iyz="1.341552e-12"/>
+      <origin xyz="0.053367179 -6.3439138e-09 -0.024644146" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="Segment3-4_3">
     <visual name="Segment3-4_3_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment3-4_3.stl"/></geometry>
-      <material name="Segment3-4_3-material"><color rgba="0 0 1 1"/></material>
+      <geometry>
+        <mesh filename="meshes/Segment3-4_3.stl"/>
+      </geometry>
+      <material name="Segment3-4_3-material">
+        <color rgba="0 0 0 1"/>
+      </material>
     </visual>
     <collision name="Segment3-4_3_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment3-4_3.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/Segment3-4_3.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.043866671"/>
-      <inertia ixx="5.0814086e-05" iyy="2.3128062e-05" izz="3.0587232e-05" ixy="0" ixz="0" iyz="0"/>
-      <origin xyz="0 -0.053367179 0.024644146" rpy="0 0 0"/>
+      <inertia ixx="5.0814086e-05" iyy="2.3128062e-05" izz="3.0587232e-05" ixy="1.1754534e-11" ixz="1.341552e-12" iyz="-1.9947672e-07"/>
+      <origin xyz="6.3439138e-09 -0.053367179 0.024644146" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="WJ-WK00-0018_45_3">
     <visual name="WJ-WK00-0018_45_3_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_3.stl"/></geometry>
-      <material name="WJ-WK00-0018_45_3-material"><color rgba="0 0 0 1"/></material>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_3.stl"/>
+      </geometry>
+      <material name="WJ-WK00-0018_45_3-material">
+        <color rgba="1 1 0 1"/>
+      </material>
     </visual>
     <collision name="WJ-WK00-0018_45_3_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_3.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_3.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.03108367"/>
-      <inertia ixx="1.2566783e-05" iyy="9.0247663e-06" izz="6.3144318e-06" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="1.2566783e-05" iyy="9.0247663e-06" izz="6.3144318e-06" ixy="2.5414708e-08" ixz="1.4760201e-08" iyz="7.1049103e-08"/>
       <origin xyz="-5.4042443e-05 0.019397661 0.017039055" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="WJ-WK00-0018_45_8">
     <visual name="WJ-WK00-0018_45_8_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_8.stl"/></geometry>
-      <material name="WJ-WK00-0018_45_8-material"><color rgba="1 1 1 1"/></material>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_8.stl"/>
+      </geometry>
+      <material name="WJ-WK00-0018_45_8-material">
+        <color rgba="0 1 0 1"/>
+      </material>
     </visual>
     <collision name="WJ-WK00-0018_45_8_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_8.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_8.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.03108367"/>
-      <inertia ixx="9.0247663e-06" iyy="1.2566783e-05" izz="6.3144318e-06" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="9.0247663e-06" iyy="1.2566783e-05" izz="6.3144318e-06" ixy="2.5414708e-08" ixz="-7.1049103e-08" iyz="-1.4760201e-08"/>
       <origin xyz="0.019397661 -5.4042443e-05 -0.012539055" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="Segment3-4_1">
     <visual name="Segment3-4_1_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment3-4_1.stl"/></geometry>
-      <material name="Segment3-4_1-material"><color rgba="1 1 1 1"/></material>
+      <geometry>
+        <mesh filename="meshes/Segment3-4_1.stl"/>
+      </geometry>
+      <material name="Segment3-4_1-material">
+        <color rgba="0 0 0 1"/>
+      </material>
     </visual>
     <collision name="Segment3-4_1_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment3-4_1.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/Segment3-4_1.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.043866671"/>
-      <inertia ixx="2.3128062e-05" iyy="5.0814086e-05" izz="3.0587232e-05" ixy="0" ixz="0" iyz="0"/>
-      <origin xyz="0.053367179 0 -0.024644146" rpy="0 0 0"/>
+      <inertia ixx="2.3128062e-05" iyy="5.0814086e-05" izz="3.0587232e-05" ixy="1.1754534e-11" ixz="-1.9947672e-07" iyz="1.341552e-12"/>
+      <origin xyz="0.053367179 -6.3439138e-09 -0.024644146" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="Segment3-4_4">
     <visual name="Segment3-4_4_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment3-4_4.stl"/></geometry>
-      <material name="Segment3-4_4-material"><color rgba="0 0 0 1"/></material>
+      <geometry>
+        <mesh filename="meshes/Segment3-4_4.stl"/>
+      </geometry>
+      <material name="Segment3-4_4-material">
+        <color rgba="1 0 1 1"/>
+      </material>
     </visual>
     <collision name="Segment3-4_4_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Segment3-4_4.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/Segment3-4_4.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.043866671"/>
-      <inertia ixx="5.0814086e-05" iyy="2.3128062e-05" izz="3.0587232e-05" ixy="0" ixz="0" iyz="0"/>
-      <origin xyz="0 -0.053367179 0.024644146" rpy="0 0 0"/>
+      <inertia ixx="5.0814086e-05" iyy="2.3128062e-05" izz="3.0587232e-05" ixy="1.1754534e-11" ixz="1.341552e-12" iyz="-1.9947672e-07"/>
+      <origin xyz="6.3439138e-09 -0.053367179 0.024644146" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="WJ-WK00-0018_45_2">
     <visual name="WJ-WK00-0018_45_2_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_2.stl"/></geometry>
-      <material name="WJ-WK00-0018_45_2-material"><color rgba="1 0 0 1"/></material>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_2.stl"/>
+      </geometry>
+      <material name="WJ-WK00-0018_45_2-material">
+        <color rgba="1 1 1 1"/>
+      </material>
     </visual>
     <collision name="WJ-WK00-0018_45_2_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_2.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_2.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.03108367"/>
-      <inertia ixx="1.2566783e-05" iyy="9.0247663e-06" izz="6.3144318e-06" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="1.2566783e-05" iyy="9.0247663e-06" izz="6.3144318e-06" ixy="2.5414708e-08" ixz="1.4760201e-08" iyz="7.1049103e-08"/>
       <origin xyz="-5.4042443e-05 0.019397661 0.017039055" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="WJ-WK00-0018_45_9">
     <visual name="WJ-WK00-0018_45_9_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_9.stl"/></geometry>
-      <material name="WJ-WK00-0018_45_9-material"><color rgba="1 0 0 1"/></material>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_9.stl"/>
+      </geometry>
+      <material name="WJ-WK00-0018_45_9-material">
+        <color rgba="0 0 0 1"/>
+      </material>
     </visual>
     <collision name="WJ-WK00-0018_45_9_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_9.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_9.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.03108367"/>
-      <inertia ixx="9.0247663e-06" iyy="1.2566783e-05" izz="6.3144318e-06" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="9.0247663e-06" iyy="1.2566783e-05" izz="6.3144318e-06" ixy="2.5414708e-08" ixz="-7.1049103e-08" iyz="-1.4760201e-08"/>
       <origin xyz="0.019397661 -5.4042443e-05 -0.012539055" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="Part_2_1">
     <visual name="Part_2_1_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Part_2_1.stl"/></geometry>
-      <material name="Part_2_1-material"><color rgba="0 1 0 1"/></material>
+      <geometry>
+        <mesh filename="meshes/Part_2_1.stl"/>
+      </geometry>
+      <material name="Part_2_1-material">
+        <color rgba="1 0.5 0 1"/>
+      </material>
     </visual>
     <collision name="Part_2_1_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Part_2_1.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/Part_2_1.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.03284794"/>
-      <inertia ixx="2.5785965e-05" iyy="1.8549745e-05" izz="1.8488494e-05" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="2.5785965e-05" iyy="1.8549745e-05" izz="1.8488494e-05" ixy="6.5810498e-08" ixz="2.4040809e-07" iyz="-6.7499601e-08"/>
       <origin xyz="-0.018082003 -2.4089364e-05 0.024921938" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="Part_2_4">
     <visual name="Part_2_4_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Part_2_4.stl"/></geometry>
-      <material name="Part_2_4-material"><color rgba="1 0 1 1"/></material>
+      <geometry>
+        <mesh filename="meshes/Part_2_4.stl"/>
+      </geometry>
+      <material name="Part_2_4-material">
+        <color rgba="0 0 1 1"/>
+      </material>
     </visual>
     <collision name="Part_2_4_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Part_2_4.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/Part_2_4.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.03284794"/>
-      <inertia ixx="2.5785965e-05" iyy="1.8549745e-05" izz="1.8488494e-05" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="2.5785965e-05" iyy="1.8549745e-05" izz="1.8488494e-05" ixy="-6.5810498e-08" ixz="-2.4040809e-07" iyz="-6.7499601e-08"/>
       <origin xyz="-0.018082003 2.4089364e-05 0.024078062" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="WJ-WK00-0018_45_1">
     <visual name="WJ-WK00-0018_45_1_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_1.stl"/></geometry>
-      <material name="WJ-WK00-0018_45_1-material"><color rgba="0 1 1 1"/></material>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_1.stl"/>
+      </geometry>
+      <material name="WJ-WK00-0018_45_1-material">
+        <color rgba="0 0 0 1"/>
+      </material>
     </visual>
     <collision name="WJ-WK00-0018_45_1_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_1.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_1.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.03108367"/>
-      <inertia ixx="1.2566783e-05" iyy="9.0247663e-06" izz="6.3144318e-06" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="1.2566783e-05" iyy="9.0247663e-06" izz="6.3144318e-06" ixy="2.5414708e-08" ixz="-1.4760201e-08" iyz="-7.1049103e-08"/>
       <origin xyz="5.3352443e-05 0.0076023392 0.021389055" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="WJ-WK00-0018_45_10">
     <visual name="WJ-WK00-0018_45_10_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_10.stl"/></geometry>
-      <material name="WJ-WK00-0018_45_10-material"><color rgba="0 0 0 1"/></material>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_10.stl"/>
+      </geometry>
+      <material name="WJ-WK00-0018_45_10-material">
+        <color rgba="1 0 0.5 1"/>
+      </material>
     </visual>
     <collision name="WJ-WK00-0018_45_10_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/WJ-WK00-0018_45_10.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/WJ-WK00-0018_45_10.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.03108367"/>
-      <inertia ixx="9.0247663e-06" iyy="1.2566783e-05" izz="6.3144318e-06" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="9.0247663e-06" iyy="1.2566783e-05" izz="6.3144318e-06" ixy="2.5414708e-08" ixz="-7.1049103e-08" iyz="-1.4760201e-08"/>
       <origin xyz="-0.0076023392 -5.3352443e-05 -0.021389055" rpy="0 0 0"/>
     </inertial>
   </link>
   <link name="StopaLewa_1">
     <visual name="StopaLewa_1_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/StopaLewa_1.stl"/></geometry>
-      <material name="StopaLewa_1-material"><color rgba="0 1 1 1"/></material>
+      <geometry>
+        <mesh filename="meshes/StopaLewa_1.stl"/>
+      </geometry>
+      <material name="StopaLewa_1-material">
+        <color rgba="0 0 1 1"/>
+      </material>
     </visual>
     <collision name="StopaLewa_1_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/StopaLewa_1.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/StopaLewa_1.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.036762237"/>
-      <inertia ixx="1.6752635e-05" iyy="2.3745418e-05" izz="9.4239934e-06" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="1.6752635e-05" iyy="2.3745418e-05" izz="9.4239934e-06" ixy="-9.2249383e-07" ixz="-1.2111253e-06" iyz="-9.3276652e-07"/>
       <origin xyz="0.018610408 0.013511737 -0.0085778566" rpy="0 0 0"/>
     </inertial>
   </link>
-  <link name="StopaPrawa_1">
-    <visual name="StopaPrawa_1_visual">
+  <link name="Part_1_4_1">
+    <visual name="Part_1_4_1_visual">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Part_1_4_1.stl"/></geometry>
-      <material name="StopaPrawa_1-material"><color rgba="1 0.5 0 1"/></material>
+      <geometry>
+        <mesh filename="meshes/Part_1_4_1.stl"/>
+      </geometry>
+      <material name="Part_1_4_1-material">
+        <color rgba="1 0 1 1"/>
+      </material>
     </visual>
-    <collision name="StopaPrawa_1_collision">
+    <collision name="Part_1_4_1_collision">
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry><mesh filename="meshes/Part_1_4_1.stl"/></geometry>
+      <geometry>
+        <mesh filename="meshes/Part_1_4_1.stl"/>
+      </geometry>
     </collision>
     <inertial>
       <mass value="0.036762326"/>
-      <inertia ixx="2.3745532e-05" iyy="1.6752847e-05" izz="9.4239149e-06" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="2.3745532e-05" iyy="1.6752847e-05" izz="9.4239149e-06" ixy="9.2248951e-07" ixz="9.3271416e-07" iyz="-1.2110897e-06"/>
       <origin xyz="0.013511696 -0.01861035 0.013077722" rpy="0 0 0"/>
     </inertial>
   </link>
-
   <joint name="Revolute_14" type="revolute">
     <origin xyz="-0.05384144 -0.31946563 0.017528324" rpy="0.039065686 0 0"/>
     <parent link="Mocowanie_1"/>
@@ -506,10 +679,12 @@
     <parent link="Segment1Lewy_2"/>
     <child link="Segment1Lewy_1"/>
   </joint>
-  <joint name="Revolute_8_Fixed" type="fixed">
+  <joint name="Revolute_8" type="revolute">
     <origin xyz="0 0 -0.005" rpy="0 0 -1.5707963"/>
     <parent link="Segment1Prawypierwszy_2"/>
     <child link="Segment1Prawypierwszy_1"/>
+    <axis xyz="0 0 -1"/>
+    <limit effort="1" velocity="1" lower="-6.2831853" upper="6.2831853"/>
   </joint>
   <joint name="Fastened_5" type="fixed">
     <origin xyz="-0.0201 -0.02700504 -0.013" rpy="1.5707963 0 1.5707963"/>
@@ -629,6 +804,6 @@
   <joint name="Fastened_13" type="fixed">
     <origin xyz="-0.027 6.9e-07 -0.00435" rpy="3.1415927 0 -1.5707963"/>
     <parent link="WJ-WK00-0018_45_10"/>
-    <child link="StopaPrawa_1"/>
+    <child link="Part_1_4_1"/>
   </joint>
 </robot>
