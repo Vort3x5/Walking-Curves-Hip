@@ -3,7 +3,7 @@ import os
 import sys
 import argparse
 import warnings
-import difflib
+import math
 import numpy as np
 import xml.etree.ElementTree as ET
 from collections import deque
@@ -13,28 +13,13 @@ try:
 except ImportError:
     raise ImportError("ikpy not installed. Run: pip install ikpy")
 
-RIGHT_BASE_LINK = "GE_27_1"
-LEFT_BASE_LINK = "GE_27_2"
-RIGHT_TIP_LINK = "StopaPrawa_1"
+RIGHT_BASE_LINK = "GE_27_2"
+LEFT_BASE_LINK = "GE_27_1"
+RIGHT_TIP_LINK = "Part_1_4_1"
 LEFT_TIP_LINK = "StopaLewa_1"
 
-GAIT_RIGHT_ORDER = [
-    "right_hip_roll",
-    "right_hip_pitch",
-    "right_knee_pitch",
-    "right_ankle_pitch",
-    "right_ankle_roll",
-    "right_ankle_yaw",
-]
-
-GAIT_LEFT_ORDER = [
-    "left_hip_roll",
-    "left_hip_pitch",
-    "left_knee_pitch",
-    "left_ankle_pitch",
-    "left_ankle_roll",
-    "left_ankle_yaw",
-]
+GAIT_RIGHT_ORDER = ["right_hip_roll", "right_hip_pitch", "right_knee_pitch", "right_ankle_pitch", "right_ankle_roll", "right_ankle_yaw"]
+GAIT_LEFT_ORDER = ["left_hip_roll", "left_hip_pitch", "left_knee_pitch", "left_ankle_pitch", "left_ankle_roll", "left_ankle_yaw"]
 
 STAND_TARGET = [0.0, 0.0, -0.197]
 
@@ -43,6 +28,24 @@ def _local_name(tag):
     if "}" in tag:
         return tag.split("}", 1)[1]
     return tag
+
+
+def _joint_score(name):
+    n = name.lower()
+    s = 0
+    if "segment1" in n:
+        s += 50
+    if "segment3-4" in n:
+        s += 40
+    if "wj-wk00-0018_45" in n:
+        s += 30
+    if "part_2_" in n:
+        s += 15
+    if "stopa" in n or "part_1_4_1" in n:
+        s -= 20
+    if "ge_27" in n or "gacie" in n or "mocowanie" in n:
+        s -= 100
+    return s
 
 
 class _LegChain:
@@ -58,9 +61,7 @@ class _LegChain:
         self.link_names = [l.name for l in self.chain.links]
         self._last = [0.0] * len(self.chain.links)
 
-        mask = getattr(self.chain, "active_links_mask", None)
-        if mask is None:
-            mask = [False] * len(self.chain.links)
+        mask = getattr(self.chain, "active_links_mask", [False] * len(self.chain.links))
         self.active_names = [self.chain.links[i].name for i, m in enumerate(mask) if bool(m)]
 
         self.limits = {}
@@ -117,6 +118,21 @@ class LegIK:
         self.solve_left(np.array(STAND_TARGET))
 
     @staticmethod
+    def _pick_six(active_names):
+        if len(active_names) == 6:
+            return active_names
+        ranked = sorted(active_names, key=lambda n: (_joint_score(n), n), reverse=True)
+        chosen = set(ranked[:6])
+        ordered = [n for n in active_names if n in chosen]
+        if len(ordered) < 6:
+            for n in ranked:
+                if n not in ordered:
+                    ordered.append(n)
+                if len(ordered) == 6:
+                    break
+        return ordered[:6]
+
+    @staticmethod
     def _build_name_map(chain_obj, gait_order, leg_name):
         names = chain_obj.active_names
         if len(names) < 6:
@@ -126,6 +142,8 @@ class LegIK:
                 f"active={names}; chain_links=[{dbg}]"
             )
         selected = names[-6:]
+        print(f"[ik] {leg_name} active joints: {names}")
+        print(f"[ik] {leg_name} selected 6: {selected}")
         return dict(zip(gait_order, selected))
 
     @staticmethod
@@ -151,59 +169,104 @@ class LegIK:
         self._left.reset()
 
 
-def generate_leg_urdfs(src_urdf, out_dir, right_base, right_tip, left_base, left_tip):
-    tree = ET.parse(src_urdf)
-    root = tree.getroot()
+    def generate_leg_urdfs(src_urdf, out_dir, right_base, right_tip, left_base, left_tip):
+        tree = ET.parse(src_urdf)
+        root = tree.getroot()
 
-    links = {}
-    joints = {}
+        links = {}
+        joints = {}
 
-    for e in root.iter():
-        ln = _local_name(e.tag)
-        if ln == "link":
-            n = e.get("name")
-            if n:
-                links[n] = e
-        elif ln == "joint":
-            n = e.get("name")
-            if n:
-                joints[n] = e
+        for e in root.iter():
+            ln = _local_name(e.tag)
+            if ln == "link":
+                n = e.get("name")
+                if n:
+                    links[n] = e
+            elif ln == "joint":
+                n = e.get("name")
+                if n:
+                    joints[n] = e
 
-    children_of = {}
-    parent_of = {}
-    edge_joint = {}
-    edge_joint_any = {}
+        children_of = {}
+        edge_joint = {}
 
-    for jn, j in joints.items():
-        p = None
-        c = None
-        for child in list(j):
-            ln = _local_name(child.tag)
-            if ln == "parent":
-                p = child
-            elif ln == "child":
-                c = child
-        if p is None or c is None:
-            continue
-        pl = p.get("link")
-        cl = c.get("link")
-        if not pl or not cl:
-            continue
+        for jn, j in joints.items():
+            p = None
+            c = None
+            for child in list(j):
+                ln = _local_name(child.tag)
+                if ln == "parent":
+                    p = child
+                elif ln == "child":
+                    c = child
+            if p is None or c is None:
+                continue
+            pl = p.get("link")
+            cl = c.get("link")
+            if not pl or not cl:
+                continue
+            children_of.setdefault(pl, []).append(cl)
+            edge_joint[(pl, cl)] = jn
 
-        children_of.setdefault(pl, []).append(cl)
-        parent_of[cl] = pl
-        edge_joint[(pl, cl)] = jn
-        edge_joint_any[(pl, cl)] = jn
-        edge_joint_any[(cl, pl)] = jn
+    def run_self_test(src_urdf, out_dir, right_base, right_tip, left_base, left_tip):
+        print("[ik:test] regenerating leg URDFs...")
+        generate_leg_urdfs(
+            src_urdf=src_urdf,
+            out_dir=out_dir,
+            right_base=right_base,
+            right_tip=right_tip,
+            left_base=left_base,
+            left_tip=left_tip,
+        )
 
-    def suggest(name, universe, n=8):
-        out = difflib.get_close_matches(name, list(universe), n=n, cutoff=0.35)
-        if not out:
-            lo = name.lower()
-            out = [x for x in universe if lo in x.lower() or x.lower() in lo][:n]
-        return out
+        print("[ik:test] loading LegIK...")
+        ik = LegIK(out_dir)
 
-    def directed_path(base_link, tip_link, forbidden_link):
+        print("[ik:test] checking output keys...")
+        r = ik.solve_right(np.array([0.02, 0.0, -0.20], dtype=float))
+        l = ik.solve_left(np.array([0.02, 0.0, -0.20], dtype=float))
+
+        r_expected = set(GAIT_RIGHT_ORDER)
+        l_expected = set(GAIT_LEFT_ORDER)
+
+        if set(r.keys()) != r_expected:
+            raise RuntimeError(f"[ik:test] right keys mismatch: got={sorted(r.keys())}, expected={sorted(r_expected)}")
+        if set(l.keys()) != l_expected:
+            raise RuntimeError(f"[ik:test] left keys mismatch: got={sorted(l.keys())}, expected={sorted(l_expected)}")
+
+        print("[ik:test] probing knee response over z sweep...")
+        z_vals = np.linspace(-0.16, -0.24, 7)
+        rk = []
+        lk = []
+        for z in z_vals:
+            rr = ik.solve_right(np.array([0.02, 0.0, z], dtype=float))
+            ll = ik.solve_left(np.array([0.02, 0.0, z], dtype=float))
+            rk.append(rr["right_knee_pitch"])
+            lk.append(ll["left_knee_pitch"])
+
+        r_span = max(rk) - min(rk)
+        l_span = max(lk) - min(lk)
+
+        print(f"[ik:test] right knee span: {r_span:.6f} rad")
+        print(f"[ik:test] left  knee span: {l_span:.6f} rad")
+        print(f"[ik:test] right knee seq: {[round(x, 4) for x in rk]}")
+        print(f"[ik:test] left  knee seq: {[round(x, 4) for x in lk]}")
+
+        if r_span < math.radians(2.0):
+            raise RuntimeError("[ik:test] right knee response too small")
+        if l_span < math.radians(2.0):
+            raise RuntimeError("[ik:test] left knee response too small")
+
+        for i in range(1, len(rk)):
+            if abs(rk[i] - rk[i - 1]) > math.radians(35):
+                raise RuntimeError("[ik:test] right knee has unnatural jump")
+        for i in range(1, len(lk)):
+            if abs(lk[i] - lk[i - 1]) > math.radians(35):
+                raise RuntimeError("[ik:test] left knee has unnatural jump")
+
+        print("[ik:test] OK")
+
+    def directed_path(base_link, tip_link):
         q = deque([base_link])
         prev = {base_link: None}
         while q:
@@ -211,8 +274,6 @@ def generate_leg_urdfs(src_urdf, out_dir, right_base, right_tip, left_base, left
             if u == tip_link:
                 break
             for v in children_of.get(u, []):
-                if v == forbidden_link:
-                    continue
                 if v not in prev:
                     prev[v] = u
                     q.append(v)
@@ -226,62 +287,9 @@ def generate_leg_urdfs(src_urdf, out_dir, right_base, right_tip, left_base, left
         path.reverse()
         return path
 
-    def descendants(root_link, forbidden):
-        out = set()
-        q = deque([root_link])
-        out.add(root_link)
-        while q:
-            u = q.popleft()
-            for v in children_of.get(u, []):
-                if v == forbidden:
-                    continue
-                if v not in out:
-                    out.add(v)
-                    q.append(v)
-        return out
-
-    def choose_tip(base_link, other_base, wanted_tip):
-        if wanted_tip in links:
-            p = directed_path(base_link, wanted_tip, other_base)
-            if p is not None:
-                return wanted_tip, p
-
-        cand_set = descendants(base_link, other_base)
-        if other_base in cand_set:
-            cand_set.remove(other_base)
-
-        foot_like = [n for n in cand_set if ("stopa" in n.lower() or "foot" in n.lower())]
-        ordered = foot_like + sorted(cand_set - set(foot_like))
-
-        best = None
-        best_path = None
-        best_score = -10**9
-
-        for n in ordered:
-            p = directed_path(base_link, n, other_base)
-            if p is None:
-                continue
-            score = 0
-            ln = n.lower()
-            if "stopa" in ln or "foot" in ln:
-                score += 200
-            score += len(p)
-            if score > best_score:
-                best_score = score
-                best = n
-                best_path = p
-
-        return best, best_path
-
-    def emit_leg_from_path(path_links, out_name):
+    def emit_leg(path_links, out_name):
         used_links = set(path_links)
-        used_joints = []
-        for i in range(len(path_links) - 1):
-            u, v = path_links[i], path_links[i + 1]
-            jn = edge_joint.get((u, v))
-            if jn is None:
-                jn = edge_joint_any[(u, v)]
-            used_joints.append(jn)
+        used_joints = [edge_joint[(path_links[i], path_links[i + 1])] for i in range(len(path_links) - 1)]
 
         lines = [f'<robot name="{out_name.replace(".urdf","")}">']
         for ln in sorted(used_links):
@@ -295,18 +303,19 @@ def generate_leg_urdfs(src_urdf, out_dir, right_base, right_tip, left_base, left
             limit_el = None
             parent_link = None
             child_link = None
-            for child in list(j):
-                ln = _local_name(child.tag)
+
+            for ch in list(j):
+                ln = _local_name(ch.tag)
                 if ln == "origin":
-                    origin = child
+                    origin = ch
                 elif ln == "axis":
-                    axis_el = child
+                    axis_el = ch
                 elif ln == "limit":
-                    limit_el = child
+                    limit_el = ch
                 elif ln == "parent":
-                    parent_link = child.get("link")
+                    parent_link = ch.get("link")
                 elif ln == "child":
-                    child_link = child.get("link")
+                    child_link = ch.get("link")
 
             xyz = origin.get("xyz", "0 0 0") if origin is not None else "0 0 0"
             rpy = origin.get("rpy", "0 0 0") if origin is not None else "0 0 0"
@@ -330,54 +339,31 @@ def generate_leg_urdfs(src_urdf, out_dir, right_base, right_tip, left_base, left
                     velocity = limit_el.get("velocity", velocity)
                 lines.append(f'    <limit lower="{lo}" upper="{hi}" effort="{effort}" velocity="{velocity}"/>')
             lines.append("  </joint>")
-        lines.append("</robot>")
 
+        lines.append("</robot>")
         out_path = os.path.join(out_dir, out_name)
         with open(out_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
 
-        nonfixed = 0
-        for jn in used_joints:
-            jt = joints[jn].get("type", "fixed")
-            if jt != "fixed":
-                nonfixed += 1
+        non_fixed = sum(1 for jn in used_joints if joints[jn].get("type", "fixed") != "fixed")
+        print(f"[ik] generated {out_path} with {len(used_joints)} joints ({non_fixed} non-fixed)")
 
-        return out_path, len(used_joints), nonfixed
+    for n in [right_base, right_tip, left_base, left_tip]:
+        if n not in links:
+            raise RuntimeError(f"Missing link in URDF: {n}")
 
-    required = [right_base, left_base]
-    missing_base = [n for n in required if n not in links]
-    if missing_base:
-        print(f"[ik] URDF parsed: links={len(links)}, joints={len(joints)}")
-        for m in missing_base:
-            print(f"[ik] missing base link: {m}")
-            cand = suggest(m, links.keys(), n=10)
-            if cand:
-                print(f"[ik] close matches for {m}: {cand}")
-        raise RuntimeError("Base link does not exist in URDF")
-
-    r_tip, r_path = choose_tip(right_base, left_base, right_tip)
-    l_tip, l_path = choose_tip(left_base, right_base, left_tip)
-
-    if r_path is None or l_path is None:
-        print(f"[ik] could not build directed path(s)")
-        print(f"[ik] right: base={right_base} wanted_tip={right_tip} chosen_tip={r_tip}")
-        print(f"[ik] left : base={left_base} wanted_tip={left_tip} chosen_tip={l_tip}")
-        raise RuntimeError("Directed base->tip path not found")
+    rp = directed_path(right_base, right_tip)
+    lp = directed_path(left_base, left_tip)
+    if rp is None:
+        raise RuntimeError(f"No directed path: {right_base} -> {right_tip}")
+    if lp is None:
+        raise RuntimeError(f"No directed path: {left_base} -> {left_tip}")
 
     os.makedirs(out_dir, exist_ok=True)
-
-    rp, rj, rnf = emit_leg_from_path(r_path, "leg_right.urdf")
-    lp, lj, lnf = emit_leg_from_path(l_path, "leg_left.urdf")
-
-    print(f"[ik] generated {rp} with {rj} joints ({rnf} non-fixed)")
-    print(f"[ik] path {right_base} -> {r_tip}: {' -> '.join(r_path)}")
-    print(f"[ik] generated {lp} with {lj} joints ({lnf} non-fixed)")
-    print(f"[ik] path {left_base} -> {l_tip}: {' -> '.join(l_path)}")
-
-    if right_tip != r_tip:
-        print(f"[ik] right tip adjusted: requested={right_tip} chosen={r_tip}")
-    if left_tip != l_tip:
-        print(f"[ik] left tip adjusted: requested={left_tip} chosen={l_tip}")
+    emit_leg(rp, "leg_right.urdf")
+    print(f"[ik] path {right_base} -> {right_tip}: {' -> '.join(rp)}")
+    emit_leg(lp, "leg_left.urdf")
+    print(f"[ik] path {left_base} -> {left_tip}: {' -> '.join(lp)}")
 
 
 if __name__ == "__main__":
@@ -388,7 +374,22 @@ if __name__ == "__main__":
     ap.add_argument("--right-tip", type=str, default=RIGHT_TIP_LINK)
     ap.add_argument("--left-base", type=str, default=LEFT_BASE_LINK)
     ap.add_argument("--left-tip", type=str, default=LEFT_TIP_LINK)
+    ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args()
+
+    if args.self_test:
+        if not args.gen_urdfs:
+            raise RuntimeError("--self-test requires --gen-urdfs <file>")
+        out = args.out if args.out else os.path.dirname(os.path.abspath(__file__))
+        run_self_test(
+            src_urdf=args.gen_urdfs,
+            out_dir=out,
+            right_base=args.right_base,
+            right_tip=args.right_tip,
+            left_base=args.left_base,
+            left_tip=args.left_tip,
+        )
+        sys.exit(0)
 
     if args.gen_urdfs:
         out = args.out if args.out else os.path.dirname(os.path.abspath(__file__))
