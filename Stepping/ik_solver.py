@@ -3,6 +3,7 @@ import os
 import sys
 import argparse
 import warnings
+import difflib
 import numpy as np
 import xml.etree.ElementTree as ET
 from collections import deque
@@ -38,10 +39,10 @@ GAIT_LEFT_ORDER = [
 STAND_TARGET = [0.0, 0.0, -0.197]
 
 
-def _ns_prefix(tag):
-    if tag.startswith("{") and "}" in tag:
-        return tag.split("}", 1)[0] + "}"
-    return ""
+def _local_name(tag):
+    if "}" in tag:
+        return tag.split("}", 1)[1]
+    return tag
 
 
 class _LegChain:
@@ -153,96 +154,230 @@ class LegIK:
 def generate_leg_urdfs(src_urdf, out_dir, right_base, right_tip, left_base, left_tip):
     tree = ET.parse(src_urdf)
     root = tree.getroot()
-    ns = _ns_prefix(root.tag)
 
-    def all_e(name):
-        return root.findall(f"{ns}{name}")
+    links = {}
+    joints = {}
 
-    links = {l.get("name"): l for l in all_e("link") if l.get("name")}
-    joints = {j.get("name"): j for j in all_e("joint") if j.get("name")}
+    for e in root.iter():
+        ln = _local_name(e.tag)
+        if ln == "link":
+            n = e.get("name")
+            if n:
+                links[n] = e
+        elif ln == "joint":
+            n = e.get("name")
+            if n:
+                joints[n] = e
 
-    graph = {}
-    edge_info = {}
+    children_of = {}
+    parent_of = {}
+    edge_joint = {}
+    edge_joint_any = {}
+
     for jn, j in joints.items():
-        p = j.find(f"{ns}parent")
-        c = j.find(f"{ns}child")
+        p = None
+        c = None
+        for child in list(j):
+            ln = _local_name(child.tag)
+            if ln == "parent":
+                p = child
+            elif ln == "child":
+                c = child
         if p is None or c is None:
             continue
         pl = p.get("link")
         cl = c.get("link")
         if not pl or not cl:
             continue
-        graph.setdefault(pl, []).append(cl)
-        graph.setdefault(cl, []).append(pl)
-        edge_info[(pl, cl)] = (jn, pl, cl)
-        edge_info[(cl, pl)] = (jn, pl, cl)
 
-    def find_link_path(start, end):
-        q = deque([start])
-        prev = {start: None}
+        children_of.setdefault(pl, []).append(cl)
+        parent_of[cl] = pl
+        edge_joint[(pl, cl)] = jn
+        edge_joint_any[(pl, cl)] = jn
+        edge_joint_any[(cl, pl)] = jn
+
+    def suggest(name, universe, n=8):
+        out = difflib.get_close_matches(name, list(universe), n=n, cutoff=0.35)
+        if not out:
+            lo = name.lower()
+            out = [x for x in universe if lo in x.lower() or x.lower() in lo][:n]
+        return out
+
+    def directed_path(base_link, tip_link, forbidden_link):
+        q = deque([base_link])
+        prev = {base_link: None}
         while q:
             u = q.popleft()
-            if u == end:
+            if u == tip_link:
                 break
-            for v in graph.get(u, []):
+            for v in children_of.get(u, []):
+                if v == forbidden_link:
+                    continue
                 if v not in prev:
                     prev[v] = u
                     q.append(v)
-        if end not in prev:
+        if tip_link not in prev:
             return None
         path = []
-        cur = end
+        cur = tip_link
         while cur is not None:
             path.append(cur)
             cur = prev[cur]
         path.reverse()
         return path
 
-    def make_leg(base_link, tip_link, out_name):
-        link_path = find_link_path(base_link, tip_link)
-        if link_path is None:
-            raise RuntimeError(f"[ik] no path found: {base_link} -> {tip_link}")
+    def descendants(root_link, forbidden):
+        out = set()
+        q = deque([root_link])
+        out.add(root_link)
+        while q:
+            u = q.popleft()
+            for v in children_of.get(u, []):
+                if v == forbidden:
+                    continue
+                if v not in out:
+                    out.add(v)
+                    q.append(v)
+        return out
 
-        edges = []
-        for i in range(len(link_path) - 1):
-            u, v = link_path[i], link_path[i + 1]
-            edges.append(edge_info[(u, v)])
+    def choose_tip(base_link, other_base, wanted_tip):
+        if wanted_tip in links:
+            p = directed_path(base_link, wanted_tip, other_base)
+            if p is not None:
+                return wanted_tip, p
 
-        lines = [f'<robot name="leg_{out_name.replace(".urdf","")}">']
-        for ln in sorted(set(link_path)):
+        cand_set = descendants(base_link, other_base)
+        if other_base in cand_set:
+            cand_set.remove(other_base)
+
+        foot_like = [n for n in cand_set if ("stopa" in n.lower() or "foot" in n.lower())]
+        ordered = foot_like + sorted(cand_set - set(foot_like))
+
+        best = None
+        best_path = None
+        best_score = -10**9
+
+        for n in ordered:
+            p = directed_path(base_link, n, other_base)
+            if p is None:
+                continue
+            score = 0
+            ln = n.lower()
+            if "stopa" in ln or "foot" in ln:
+                score += 200
+            score += len(p)
+            if score > best_score:
+                best_score = score
+                best = n
+                best_path = p
+
+        return best, best_path
+
+    def emit_leg_from_path(path_links, out_name):
+        used_links = set(path_links)
+        used_joints = []
+        for i in range(len(path_links) - 1):
+            u, v = path_links[i], path_links[i + 1]
+            jn = edge_joint.get((u, v))
+            if jn is None:
+                jn = edge_joint_any[(u, v)]
+            used_joints.append(jn)
+
+        lines = [f'<robot name="{out_name.replace(".urdf","")}">']
+        for ln in sorted(used_links):
             lines.append(f'  <link name="{ln}"/>')
 
-        for (jn, parent_orig, child_orig) in edges:
+        for jn in used_joints:
             j = joints[jn]
             jtype = j.get("type", "fixed")
-            origin = j.find(f"{ns}origin")
-            axis_el = j.find(f"{ns}axis")
+            origin = None
+            axis_el = None
+            limit_el = None
+            parent_link = None
+            child_link = None
+            for child in list(j):
+                ln = _local_name(child.tag)
+                if ln == "origin":
+                    origin = child
+                elif ln == "axis":
+                    axis_el = child
+                elif ln == "limit":
+                    limit_el = child
+                elif ln == "parent":
+                    parent_link = child.get("link")
+                elif ln == "child":
+                    child_link = child.get("link")
+
             xyz = origin.get("xyz", "0 0 0") if origin is not None else "0 0 0"
             rpy = origin.get("rpy", "0 0 0") if origin is not None else "0 0 0"
             axis = axis_el.get("xyz", "0 0 1") if axis_el is not None else "0 0 1"
 
             lines.append(f'  <joint name="{jn}" type="{jtype}">')
-            lines.append(f'    <parent link="{parent_orig}"/>')
-            lines.append(f'    <child link="{child_orig}"/>')
+            lines.append(f'    <parent link="{parent_link}"/>')
+            lines.append(f'    <child link="{child_link}"/>')
             lines.append(f'    <origin xyz="{xyz}" rpy="{rpy}"/>')
             if jtype != "fixed":
                 lines.append(f'    <axis xyz="{axis}"/>')
-            if jtype == "revolute":
-                lines.append('    <limit lower="-3.1415926535" upper="3.1415926535" effort="1000" velocity="1000"/>')
+            if jtype in ("revolute", "prismatic"):
+                lo = "-3.14159265359"
+                hi = "3.14159265359"
+                effort = "100"
+                velocity = "10"
+                if limit_el is not None:
+                    lo = limit_el.get("lower", lo)
+                    hi = limit_el.get("upper", hi)
+                    effort = limit_el.get("effort", effort)
+                    velocity = limit_el.get("velocity", velocity)
+                lines.append(f'    <limit lower="{lo}" upper="{hi}" effort="{effort}" velocity="{velocity}"/>')
             lines.append("  </joint>")
-
         lines.append("</robot>")
+
         out_path = os.path.join(out_dir, out_name)
         with open(out_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
-        print(f"[ik] generated {out_path} with {len(edges)} joints")
 
-    if right_base not in links or right_tip not in links or left_base not in links or left_tip not in links:
-        raise RuntimeError("One of base/tip links does not exist in URDF")
+        nonfixed = 0
+        for jn in used_joints:
+            jt = joints[jn].get("type", "fixed")
+            if jt != "fixed":
+                nonfixed += 1
+
+        return out_path, len(used_joints), nonfixed
+
+    required = [right_base, left_base]
+    missing_base = [n for n in required if n not in links]
+    if missing_base:
+        print(f"[ik] URDF parsed: links={len(links)}, joints={len(joints)}")
+        for m in missing_base:
+            print(f"[ik] missing base link: {m}")
+            cand = suggest(m, links.keys(), n=10)
+            if cand:
+                print(f"[ik] close matches for {m}: {cand}")
+        raise RuntimeError("Base link does not exist in URDF")
+
+    r_tip, r_path = choose_tip(right_base, left_base, right_tip)
+    l_tip, l_path = choose_tip(left_base, right_base, left_tip)
+
+    if r_path is None or l_path is None:
+        print(f"[ik] could not build directed path(s)")
+        print(f"[ik] right: base={right_base} wanted_tip={right_tip} chosen_tip={r_tip}")
+        print(f"[ik] left : base={left_base} wanted_tip={left_tip} chosen_tip={l_tip}")
+        raise RuntimeError("Directed base->tip path not found")
 
     os.makedirs(out_dir, exist_ok=True)
-    make_leg(right_base, right_tip, "leg_right.urdf")
-    make_leg(left_base, left_tip, "leg_left.urdf")
+
+    rp, rj, rnf = emit_leg_from_path(r_path, "leg_right.urdf")
+    lp, lj, lnf = emit_leg_from_path(l_path, "leg_left.urdf")
+
+    print(f"[ik] generated {rp} with {rj} joints ({rnf} non-fixed)")
+    print(f"[ik] path {right_base} -> {r_tip}: {' -> '.join(r_path)}")
+    print(f"[ik] generated {lp} with {lj} joints ({lnf} non-fixed)")
+    print(f"[ik] path {left_base} -> {l_tip}: {' -> '.join(l_path)}")
+
+    if right_tip != r_tip:
+        print(f"[ik] right tip adjusted: requested={right_tip} chosen={r_tip}")
+    if left_tip != l_tip:
+        print(f"[ik] left tip adjusted: requested={left_tip} chosen={l_tip}")
 
 
 if __name__ == "__main__":
