@@ -119,8 +119,8 @@ def main():
 
         la_raw = -KNEE_BASE
         ra_raw = -KNEE_BASE
-        la_comp = -lh + lk + ankle_offset
-        ra_comp = rh - rk + ankle_offset
+        la_comp = -(lh - lk) + ankle_offset
+        ra_comp = -(rh - rk) + ankle_offset
 
         if args.mode == "raw":
             zero_non_pitch(rid, one_names)
